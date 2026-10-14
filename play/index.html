@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>格斗大脑实验台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- 字体全部打包在本地（assets/fonts.js 以 data: URI 注入 @font-face），离线、file:// 下都能用；没有该文件时退回系统字体 -->
+<script src="assets/fonts.js"></script>
+<style>
+/* 版式：夜间街机厅的单一深色世界。左边是游戏机屏幕，右边是"开盖"的大脑；双脑模式下屏幕在上、两颗大脑并排在下。
+   颜色只取自游戏本身：P1 蓝、P2 红、血条金；正激活橙、负激活蓝。 */
+:root {
+  color-scheme: dark;
+  --bg: #0a0c16; --surface: #121626; --surface-2: #181d31; --line: #262c45; --ink: #e6e9f8; --ink-2: #a3a9c6; --ink-3: #6f7594;
+  --p1: #7fb0ff; --p2: #ff8f87; --gold: #ffd23f; --pos: #ffb547; --neg: #4aa3ff; --cut: #ff5a6a;
+  --f-display: "ZCOOL QingKe HuangYou", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --f-body: "Noto Sans SC", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  --f-hud: "Press Start 2P", "JetBrains Mono", monospace;
+  --f-mono: "JetBrains Mono", Consolas, monospace;
+  --hdr: 52px;
+  --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --heat-mid: #262b40; --bg-chart: #121626;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.5;
+  padding-inline: 16px; padding-block: 0 16px; }
+header { height: var(--hdr); display: flex; align-items: center; gap: 18px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+header h1 { font-family: var(--f-display); font-weight: 400; font-size: 26px; margin: 0; letter-spacing: 0.04em; }
+header .tag { font-family: var(--f-hud); font-size: 9px; color: var(--gold); letter-spacing: 0.1em; }
+header .sp { flex: 1; }
+header select, header button { font: inherit; }
+/* 布局规范（所有神经网络项目通用）：左栏 = 游戏画面 + 下方选项与说明；右栏 = 只放大脑，占满整个高度。
+   左右比例约 45:55，「大屏模式」改成约 35:65。 */
+.app { display: grid; gap: 14px; padding-top: 14px; height: calc(100% - var(--hdr)); min-height: 600px;
+  grid-template-columns: minmax(0, 45fr) minmax(0, 55fr); }
+body.big .app { grid-template-columns: minmax(0, 35fr) minmax(0, 65fr); }
+.left { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.game-area { min-width: 0; display: grid; gap: 6px; flex: none; }
+#game-wrap { background: #05060c; border: 1px solid var(--line); position: relative; }
+#caption { position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%); background: rgba(5,6,12,0.82); color: var(--ink);
+  border: 1px solid var(--gold); padding: 6px 14px; font-size: 18px; white-space: nowrap; }
+#game { display: block; width: 100%; height: auto; aspect-ratio: 384 / 224; max-width: 100%; outline: none; }
+#game:focus-visible { outline: 2px solid var(--p1); }
+#readout { margin: 0; font-family: var(--f-mono); font-size: 12px; color: var(--ink-2); min-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pad { display: none; grid-template-columns: repeat(4, 48px) 1fr repeat(2, 64px); gap: 6px; align-items: center; }
+.pad button { height: 46px; font: inherit; background: #1d2238; color: var(--ink); border: 1px solid var(--line); touch-action: none; user-select: none; }
+.pad button.on { background: #3a4370; }
+@media (pointer: coarse) { .pad { display: grid; } }
+.ctrl { min-width: 0; min-height: 0; flex: 1; overflow: auto; display: grid; gap: 12px; align-content: start; padding-right: 2px; }
+.brains { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.brain-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: none; }
+.brain-bar .lbl { font-size: 12px; color: var(--ink-3); }
+.brain-tabs { display: flex; }
+.brain-tabs button { font: inherit; font-size: 13px; padding: 5px 14px; background: transparent; color: var(--ink-2); border: 1px solid var(--line); cursor: pointer; }
+.brain-tabs button + button { border-left: none; }
+.brain-tabs button.on { background: #2b3358; color: var(--ink); border-color: #4a5590; }
+.brain-tabs button:disabled { opacity: 0.4; cursor: default; }
+.brain-bar .sp { flex: 1; }
+.brain-bar label { font-size: 12.5px; color: var(--ink-2); display: flex; gap: 5px; align-items: center; cursor: pointer; }
+.brain-stack { flex: 1; min-height: 0; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(0, 1fr); overflow: auto; }
+.brain-stack.grid2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.brain-stack.scroll { grid-auto-rows: minmax(340px, auto); }
+.brain-stack canvas { width: 100%; height: 100%; min-height: 0; display: block; border: 1px solid var(--line); background: #0f1220; }
+.brain-stack.all canvas { cursor: pointer; }
+.box { background: var(--surface); border: 1px solid var(--line); padding: 10px 12px; display: grid; gap: 8px; }
+.box h2 { font-size: 12px; font-weight: 500; color: var(--ink-3); margin: 0; letter-spacing: 0.06em; }
+#pickers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.picker { background: var(--surface-2); border: 1px solid var(--line); padding: 10px; display: grid; gap: 7px; min-width: 0; }
+.pk-head { display: flex; align-items: center; gap: 8px; }
+.pk-head .who { margin-left: auto; font-size: 12px; color: var(--gold); display: flex; gap: 4px; align-items: center; cursor: pointer; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.seg { display: flex; gap: 0; }
+.seg button { flex: 1; font: inherit; font-size: 12px; padding: 4px 6px; border: 1px solid var(--line); background: transparent; color: var(--ink-2); cursor: pointer; }
+.seg button + button { border-left: none; }
+.seg button.on { background: #2b3358; color: var(--ink); border-color: #3c4675; }
+.row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); flex-wrap: wrap; }
+.row input[type=range] { flex: 1; min-width: 90px; accent-color: var(--gold); }
+.row output { font-family: var(--f-mono); color: var(--ink); min-width: 64px; }
+select { background: var(--surface); color: var(--ink); border: 1px solid var(--line); padding: 3px 6px; font: inherit; font-size: 12px; max-width: 100%; }
+select.full { width: 100%; }
+.minfo { margin: 0; font-size: 11.5px; color: var(--ink-3); }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+button.b { font: inherit; font-size: 12.5px; padding: 5px 12px; background: #232a48; color: var(--ink); border: 1px solid #343d66; cursor: pointer; }
+button.b:hover { background: #2c3459; }
+button.b:disabled { opacity: 0.45; cursor: default; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--p1); outline-offset: 1px; }
+.checks { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--ink-2); }
+.checks label { display: flex; gap: 5px; align-items: center; cursor: pointer; }
+#cut-info { font-size: 12px; color: var(--ink-2); }
+.box.keys { display: block; font-size: 12px; color: var(--ink-3); line-height: 1.8; }
+kbd { font-family: var(--f-mono); font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px; padding: 0 4px; color: var(--ink); background: var(--surface-2); }
+#status { color: var(--gold); font-size: 12px; min-height: 16px; margin: 0; }
+.note { font-size: 11.5px; color: var(--ink-3); margin: 0; }
+@media (max-width: 980px) {
+  body { padding-inline: 16px; }
+  header { height: auto; padding-block: 8px; }
+  .app, body.big .app { height: auto; grid-template-columns: minmax(0, 1fr); }
+  .ctrl { overflow: visible; }
+  .brain-stack, .brain-stack.grid2 { grid-template-columns: minmax(0, 1fr); grid-auto-rows: 640px; overflow: visible; }
+  #pickers { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* 标签页 + 报告 */
+.tabs { display: flex; gap: 2px; }
+.tabs a { color: var(--ink-2); text-decoration: none; font-size: 13px; padding: 6px 12px; border: 1px solid transparent; }
+.tabs a.on { color: var(--ink); border-color: var(--line); background: var(--surface); }
+.tabs a:focus-visible { outline: 2px solid var(--p1); }
+body.reportmode .app, body.reportmode .only-play { display: none !important; }
+#report { display: none; }
+body.reportmode #report { display: block; }
+#report { max-width: 1080px; margin: 0 auto; padding-block: 28px 80px; }
+#report section { display: grid; gap: 14px; padding-block: 30px 6px; border-top: 1px solid var(--line); }
+#report section:first-of-type { border-top: none; }
+#report h2 { font-family: var(--f-display); font-weight: 400; font-size: 30px; margin: 0; line-height: 1.2; text-wrap: balance; }
+#report h3 { font-size: 15px; margin: 6px 0 0; }
+#report p { margin: 0; max-width: 72ch; color: var(--ink-2); line-height: 1.75; }
+#report p b { color: var(--ink); }
+#report .eyebrow { font-family: var(--f-hud); font-size: 9px; color: var(--gold); letter-spacing: 0.12em; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.tile { background: var(--surface); border: 1px solid var(--line); padding: 12px 14px; display: grid; gap: 4px; align-content: start; }
+.tile .k { font-size: 12px; color: var(--ink-3); }
+.tile .v { font-family: var(--f-mono); font-size: 24px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.tile .d { font-size: 12px; color: var(--ink-2); }
+.chart { background: var(--surface); border: 1px solid var(--line); padding: 10px 10px 4px; overflow-x: auto; }
+.chart svg { display: block; width: 100%; height: auto; min-width: 560px; }
+.twocol .chart svg { min-width: 400px; }
+.chart text { fill: var(--ink-2); font-family: var(--f-body); font-size: 11px; }
+.chart text.lab { fill: var(--ink-3); font-size: 11.5px; }
+.chart text.num { fill: var(--ink); font-family: var(--f-mono); font-size: 11px; }
+.chart .gr { stroke: var(--line); stroke-width: 1; }
+.chart .ax { stroke: var(--ink-3); stroke-width: 1; }
+.cap { font-size: 12px; color: var(--ink-3); max-width: 80ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--ink-2); }
+.legend i { display: inline-block; width: 16px; height: 4px; margin-right: 6px; vertical-align: middle; }
+.twocol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 860px) { .twocol { grid-template-columns: minmax(0, 1fr); } }
+.tbl { overflow-x: auto; border: 1px solid var(--line); background: var(--surface); }
+.tbl table, #ko-table table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.tbl th, .tbl td, #ko-table th, #ko-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl th, #ko-table th { color: var(--ink-3); font-weight: 500; font-size: 12px; white-space: nowrap; }
+td.n { font-family: var(--f-mono); white-space: nowrap; }
+#ko-table { overflow-x: auto; border: 1px solid var(--line); background: var(--surface); }
+.verdict { border: 1px solid var(--gold); background: var(--surface); padding: 16px 18px; display: grid; gap: 10px; }
+.verdict h3 { font-family: var(--f-display); font-weight: 400; font-size: 24px; margin: 0; }
+.verdict ul { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; color: var(--ink-2); max-width: 75ch; }
+.media { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.media figure { margin: 0; display: grid; gap: 6px; }
+.media video, .media img { width: 100%; border: 1px solid var(--line); background: #05060c; }
+.diagram { background: var(--surface); border: 1px solid var(--line); padding: 10px; overflow-x: auto; }
+.diagram svg { display: block; width: 100%; height: auto; min-width: 640px; }
+.diagram text { font-family: var(--f-body); fill: var(--ink); font-size: 12px; }
+.diagram .muted { fill: var(--ink-2); font-size: 11px; }
+.diagram .box { fill: var(--bg); stroke: var(--ink-3); stroke-width: 1; }
+.diagram .boxhi { fill: var(--bg); stroke: var(--p1); stroke-width: 1.5; }
+.diagram .arrow { stroke: var(--ink-3); stroke-width: 1.2; fill: none; marker-end: url(#ah); }
+.rtip { position: fixed; z-index: 20; pointer-events: none; background: #05060c; color: var(--ink); border: 1px solid var(--line);
+  font-size: 12px; padding: 6px 9px; line-height: 1.5; max-width: 280px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* ---- 玩法切换 / 新手引导 ---- */
+.modes { display: flex; gap: 0; }
+.modes button { font: inherit; font-size: 13px; padding: 6px 14px; background: transparent; color: var(--ink-2); border: 1px solid var(--line); cursor: pointer; }
+.modes button + button { border-left: none; }
+.modes button.on { background: #2b3358; color: var(--ink); border-color: #4a5590; }
+.modes button[data-mode=play].on { background: var(--gold); color: #1a1400; border-color: var(--gold); }
+#help-btn { font: inherit; font-weight: 700; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--gold); background: transparent; color: var(--gold); cursor: pointer; }
+#help-btn:hover { background: rgba(255,210,63,0.12); }
+#exit-btn { font: inherit; font-size: 13px; padding: 5px 14px; border: 1px solid #6a3a44; background: transparent; color: #ff9aa6; cursor: pointer; }
+#exit-btn:hover { background: rgba(255,90,106,0.12); }
+#ended { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: grid; place-items: center; padding: 16px; text-align: center; }
+#ended h2 { font-family: var(--f-display); font-weight: 400; font-size: 34px; margin: 0 0 10px; }
+#ended p { color: var(--ink-2); margin: 4px 0; }
+#coach-flash { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); padding: 6px 14px; font-size: 16px; font-weight: 700; white-space: nowrap; pointer-events: none;
+  background: rgba(5,6,12,0.85); border: 1px solid; max-width: 92%; overflow: hidden; text-overflow: ellipsis; }
+#coach-flash.ok { color: #7dffb0; border-color: #3fbf7a; }
+#coach-flash.hint { color: var(--gold); border-color: #8a7420; font-size: 14px; font-weight: 500; }
+#inhist { position: absolute; left: 6px; top: 16%; margin: 0; padding: 4px 0; list-style: none; width: 64px; pointer-events: none;
+  background: rgba(5,6,12,0.55); border: 1px solid rgba(255,255,255,0.08); font-family: var(--f-mono); font-size: 13px; }
+#inhist li { display: grid; grid-template-columns: 20px 16px 1fr; align-items: center; padding: 0 6px; color: var(--ink); opacity: 0.95; height: 19px; }
+#inhist li:nth-child(n+6) { opacity: 0.55; }
+#inhist li .bt { color: var(--gold); font-weight: 700; }
+#inhist li .n { color: var(--ink-3); text-align: right; font-size: 11px; }
+#inhist li.mc .bt::after { content: "*"; color: #5fd39a; }
+.you { display: none; }
+body.m-play .you, body.m-practice .you { display: grid; }
+body.m-play #pick0, body.m-practice #pick0, body.m-practice #pick1 { display: none; }
+body.m-play #pickers, body.m-practice #pickers { grid-template-columns: minmax(0, 1fr); }
+/* 控制栏顺序：人来打时招式表靠前，观战时靠后 */
+.ctrl > .you { order: 0; } .ctrl > #pickers { order: 2; } .ctrl > .box.moves { order: 5; } .ctrl > .box.play { order: 3; } .ctrl > .box.ko { order: 4; }
+.ctrl > #status, .ctrl > .note { order: 9; }
+body.m-play .ctrl > .box.moves, body.m-practice .ctrl > .box.moves { order: 1; }
+.pk-you { display: none; margin-left: auto; font-size: 12px; color: var(--gold); }
+body.m-play #pick0 .pk-you, body.m-practice #pick0 .pk-you { display: inline; }
+body.m-practice #pick1 .pk-head::after { content: "木桩（见右侧练习面板）"; margin-left: auto; font-size: 12px; color: var(--ink-3); }
+.presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; }
+.presets button { font: inherit; font-size: 13px; padding: 6px 4px; border: 1px solid var(--line); background: transparent; color: var(--ink-2); cursor: pointer; }
+.presets button + button { border-left: none; }
+.presets button.on { background: #2b3358; color: var(--ink); border-color: #4a5590; }
+details.adv summary { font-size: 12px; color: var(--ink-3); cursor: pointer; }
+details.adv[open] { display: grid; gap: 7px; }
+.easy-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+.badge { font-size: 11px; padding: 1px 6px; border: 1px solid #3fbf7a; color: #7dffb0; }
+body:not(.easy) .badge { opacity: 0.35; text-decoration: line-through; }
+#movelist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.mv { font: inherit; display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 4px 8px; background: var(--surface-2);
+  border: 1px solid var(--line); color: var(--ink); cursor: help; text-align: left; min-width: 0; }
+.mv:hover, .mv:focus-visible { border-color: var(--gold); }
+.mv.sp .mvn { color: var(--gold); font-weight: 700; }
+.mvn { font-size: 12.5px; white-space: nowrap; }
+.mvs { font-family: var(--f-mono); font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+.mvs b { color: var(--gold); font-weight: 600; }
+#mvtip { position: fixed; z-index: 30; background: #05060c; border: 1px solid var(--gold); padding: 10px 12px; max-width: 340px; display: grid; gap: 6px; pointer-events: none; }
+#mvtip .fc { margin-left: 8px; font-size: 11px; color: var(--ink-3); }
+#mvtip .seq { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+#mvtip .st { display: grid; justify-items: center; gap: 2px; padding: 4px 6px; border: 1px solid var(--line); opacity: 0.45; transition: opacity .1s; }
+#mvtip .st.done { opacity: 0.75; }
+#mvtip .st.lit { opacity: 1; border-color: var(--gold); background: rgba(255,210,63,0.12); }
+#mvtip .ar { font-size: 22px; line-height: 1; }
+#mvtip .sep { color: var(--ink-3); }
+#mvtip p { margin: 0; font-size: 12px; color: var(--ink-2); }
+#practice-pane { display: none; }
+body.m-practice #practice-pane { display: grid; gap: 12px; align-content: start; }
+body.m-practice .brain-stack, body.m-practice .brain-bar { display: none; }
+body.m-practice .box.ko { display: none; }
+#tasks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+#tasks li { display: grid; grid-template-columns: 26px 80px 1fr; gap: 8px; align-items: center; padding: 7px 10px; background: var(--surface-2); border: 1px solid var(--line); }
+#tasks li .ck { width: 20px; height: 20px; border: 1px solid var(--ink-3); display: grid; place-items: center; color: #7dffb0; font-weight: 700; }
+#tasks li.ok { border-color: #2f7d55; }
+#tasks li.ok .ck { border-color: #3fbf7a; background: rgba(63,191,122,0.15); }
+#tasks li .hint { font-size: 12px; color: var(--ink-3); }
+#tasks-progress { font-family: var(--f-mono); color: var(--gold); }
+#help { position: fixed; inset: 0; z-index: 50; background: rgba(4,5,10,0.78); display: grid; place-items: center; padding: 16px; overflow: auto; }
+.help-card { position: relative; background: var(--surface); border: 1px solid var(--gold); max-width: 940px; width: 100%; padding: 20px 24px; display: grid; gap: 12px; }
+.help-card h2 { font-family: var(--f-display); font-weight: 400; font-size: 30px; margin: 0; }
+.help-card h3 { font-size: 15px; margin: 0 0 4px; color: var(--gold); }
+.help-card ul { margin: 0; padding-left: 1.1em; display: grid; gap: 5px; color: var(--ink-2); font-size: 13.5px; }
+.help-card li b { color: var(--ink); }
+.help-kbd svg { width: 100%; max-width: 520px; height: auto; display: block; margin: 0 auto; }
+.help-kbd .kk { fill: var(--ink); font-family: var(--f-mono); font-size: 16px; font-weight: 600; }
+.help-kbd .kl { fill: var(--ink-2); font-family: var(--f-body); font-size: 11px; }
+.help-kbd .kh { fill: var(--ink-3); font-family: var(--f-body); font-size: 11.5px; }
+.help-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.help-x { position: absolute; right: 10px; top: 6px; font-size: 26px; background: none; border: none; color: var(--ink-2); cursor: pointer; }
+.help-foot { display: flex; justify-content: flex-end; }
+button.big { font-size: 15px; padding: 8px 20px; background: var(--gold); color: #1a1400; border: none; font-weight: 700; }
+button.big:hover { background: #ffdd66; }
+#credits img.logo { height: 18px; width: auto; vertical-align: middle; }
+#credits { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 11.5px; color: var(--ink-3); border-top: 1px solid var(--line); padding: 10px 0 4px; margin-top: 14px; }
+@media (max-width: 760px) { .help-cols { grid-template-columns: minmax(0, 1fr); } #movelist { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 1500px) and (min-width: 981px) { #pickers { grid-template-columns: minmax(0, 1fr); } .presets button { font-size: 12px; } }
+@media (max-height: 820px) and (min-width: 981px) { header h1 { font-size: 22px; } }
+</style>
+</head>
+<body>
+
+
+<header>
+  <span class="tag">ARCADE · RL · LAB</span>
+  <h1>格斗大脑实验台</h1>
+  <nav class="tabs" aria-label="页面">
+    <a href="#play" id="tab-play" class="on">实验台</a>
+    <a href="#report" id="tab-report">实验报告</a>
+  </nav>
+  <div class="modes only-play" role="group" aria-label="玩法">
+    <button data-mode="watch" class="on" aria-pressed="true">观战</button>
+    <button data-mode="play" aria-pressed="false">我来打</button>
+    <button data-mode="practice" aria-pressed="false">练习</button>
+  </div>
+  <span class="sp"></span>
+  <button id="help-btn" title="操作说明（H）" aria-label="操作说明">?</button>
+  <button id="exit-btn" title="停止全部计算并结束">退出</button>
+</header>
+<main class="app">
+  <div class="left">
+  <section class="game-area">
+    <div id="game-wrap"><canvas id="game" tabindex="0" width="1152" height="672" aria-label="格斗游戏画面"></canvas>
+      <div id="caption" hidden></div>
+      <ul id="inhist" hidden aria-label="输入历史"></ul>
+      <div id="coach-flash" class="flash" hidden aria-live="polite"></div></div>
+    <div class="pad" id="pad" aria-label="触屏按键（我来打 / 练习时可用）">
+      <button data-pad="left">←</button><button data-pad="up">↑</button><button data-pad="down">↓</button><button data-pad="right">→</button>
+      <span></span><button data-pad="L">轻 J</button><button data-pad="H">重 K</button>
+      <button data-easy="0">气功</button><button data-easy="2">冲天</button>
+    </div>
+    <p id="readout"></p>
+  </section>
+  <section class="ctrl">
+    <div class="box you">
+      <h2>你操作 P1（蓝）</h2>
+      <label class="easy-row"><input type="checkbox" id="easy" checked> <b>新手模式</b><span class="badge">一键必杀技</span>
+        <span><kbd>U</kbd> 气功波 · <kbd>I</kbd> 冲天拳 · 按住 <kbd>Shift</kbd> 放重版本</span></label>
+      <p class="note">公平性说明：AI 的动作空间里本来就有这 4 个「搓招宏」（↓↘→+攻击、→↓↘+攻击），每一下方向和按键照样计入手速（APM）。给人类一键搓招，等于让人和 AI 用同样的按法。</p>
+      <p class="note">左上角是输入历史；搓招成功会闪「✓」，没出来会提示差在哪。</p>
+    </div>
+    <div id="pickers"></div>
+    <div class="box play">
+      <h2>播放</h2>
+      <div class="btns">
+        <button class="b" id="pause">暂停</button>
+        <button class="b" id="step">单帧 ▸</button>
+        <label class="row">速度 <select id="speed"><option value="1">1×</option><option value="0.5">0.5×</option><option value="0.25">0.25×</option><option value="0.1">0.1×</option></select></label>
+        <button class="b" id="restart">重开比赛</button>
+      </div>
+      <div class="checks">
+        <label><input type="checkbox" id="opt-ghost"> AI 视角（延迟幽灵）</label>
+        <label><input type="checkbox" id="opt-boxes"> 判定框</label>
+        <label><input type="checkbox" id="opt-edges"> 网络连线</label>
+        <label><input type="checkbox" id="opt-attribution"> 输入归因</label>
+        <label><input type="checkbox" id="opt-ig"> 积分梯度（更慢）</label>
+        <label><input type="checkbox" id="opt-sound"> 音效</label>
+      </div>
+    </div>
+    <div class="box ko">
+      <h2>神经元敲除</h2>
+      <div class="btns"><span id="cut-info"></span></div>
+      <div class="btns"><button class="b" id="cut-key" disabled>敲掉标注的神经元</button><button class="b" id="cut-rand">随机敲掉 25%</button><button class="b" id="cut-reset" disabled>全部恢复</button></div>
+      <p class="note" id="cut-key-note"></p>
+    </div>
+    <div class="box moves">
+      <h2>招式表（鼠标停在招式上看怎么按）</h2>
+      <div id="movelist"></div>
+      <p class="note"><kbd>A</kbd><kbd>D</kbd> 移动 · <kbd>W</kbd> 跳 · <kbd>S</kbd> 蹲 · <kbd>J</kbd> 轻 · <kbd>K</kbd> 重 · 空格暂停（暂停时 <kbd>.</kbd> 单帧）· <kbd>H</kbd> 操作说明</p>
+    </div>
+    <p id="status"></p>
+    <p class="note">游戏核心与 Python 训练环境逐帧一致；网络是训练出来的真实权重。归因是模型内部的相关性解释，不代表因果。</p>
+  </section>
+  </div>
+  <section class="brains" aria-label="神经网络">
+    <div class="brain-bar only-brains">
+      <span class="lbl">大脑</span>
+      <div class="brain-tabs" id="brain-tabs" role="group" aria-label="显示哪个大脑"></div>
+      <span class="sp"></span>
+      <label title="把左右比例从约 45:55 调成约 35:65，方便投影"><input type="checkbox" id="bigmode"> 大屏模式</label>
+    </div>
+    <div class="brain-stack" id="brain-stack"></div>
+    <div id="practice-pane">
+      <div class="box">
+        <h2>练习模式 · 木桩</h2>
+        <div class="seg" id="dummy" role="group" aria-label="木桩行为">
+          <button data-dummy="stand" class="on">站着不动</button><button data-dummy="block">只防御</button><button data-dummy="jump">只跳</button><button data-dummy="attack">会出拳</button>
+        </div>
+        <p class="note">练习模式不计时，血量低于 40% 自动回满。想练防御，把木桩切到「会出拳」：它会交替出站重拳（站防、蹲防都能挡）和蹲轻（只能蹲防）。</p>
+      </div>
+      <div class="box">
+        <h2>任务清单 <span id="tasks-progress"></span></h2>
+        <ul id="tasks"></ul>
+      </div>
+    </div>
+  </section>
+</main>
+<div id="mvtip" hidden></div>
+<div id="help" hidden></div>
+<div id="report">
+  <section>
+    <span class="eyebrow">REPORT</span>
+    <h2>网络大小、人类条件与"能不能赢职业选手"</h2>
+    <p id="rp-lede"></p>
+    <div class="tiles" id="rp-tiles"></div>
+    <div class="verdict" id="rp-verdict"></div>
+  </section>
+
+
+  <section>
+    <span class="eyebrow">SYSTEM</span>
+    <h2>框架与这台小街机</h2>
+    <p>所有游戏后端吃同一套 27 种"相对朝向"逐帧输入，观测都是从自己视角镜像过的 RAM 特征；反应延迟和 APM 上限写成包装器，训练、联赛、评估和这台实验台全部复用。下面的帧表是每个招式的发生、持续、收招帧（一格 = 1/60 秒）。</p>
+    <div class="diagram" role="img" aria-label="框架架构图">
+    <svg viewBox="0 0 980 360" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--ink-3)"/></marker></defs>
+      <text x="20" y="22" class="muted">游戏后端（envs/）</text>
+      <rect class="boxhi" x="20" y="34" width="210" height="62"/><text x="32" y="58">自带 2D 格斗环境</text><text x="32" y="80" class="muted">纯 Python，JS 版逐帧一致</text>
+      <rect class="box" x="20" y="108" width="210" height="62"/><text x="32" y="132">stable-retro 适配器</text><text x="32" y="154" class="muted">Genesis / FBNeo，需 Linux</text>
+      <rect class="box" x="20" y="182" width="210" height="62"/><text x="32" y="206">DIAMBRA 适配器</text><text x="32" y="228" class="muted">街机原版，需 Docker</text>
+      <text x="20" y="276" class="muted">game_specs/*.json</text><text x="20" y="294" class="muted">按键映射 · RAM 变量 · 满血值</text>
+      <text x="290" y="22" class="muted">人类条件包装器（wrappers/）</text>
+      <rect class="box" x="290" y="34" width="230" height="250"/>
+      <text x="306" y="60">APM 令牌桶（统计/限制）</text>
+      <text x="306" y="90">粘滞动作</text>
+      <text x="306" y="120">观测延迟 d 帧</text><text x="306" y="138" class="muted">200ms = 12 帧</text>
+      <text x="306" y="168">跳帧 k=4（tap 语义）</text>
+      <text x="306" y="198">指令宏 236 / 623</text>
+      <text x="306" y="228">动作历史（自己按过什么）</text>
+      <text x="306" y="268" class="muted">内 → 外，逐帧层在跳帧之内</text>
+      <path class="arrow" d="M230,140 L288,140"/>
+      <text x="580" y="22" class="muted">训练（agents/ · league/）</text>
+      <rect class="boxhi" x="580" y="34" width="180" height="62"/><text x="594" y="58">PPO（CleanRL 风格）</text><text x="594" y="80" class="muted">MLP 2×256，CPU 训练</text>
+      <rect class="box" x="580" y="122" width="180" height="76"/><text x="594" y="146">对手池</text><text x="594" y="166" class="muted">历史快照（PFSP 加权）</text><text x="594" y="184" class="muted">+ 25% 脚本 CPU</text>
+      <rect class="box" x="580" y="222" width="180" height="62"/><text x="594" y="246">PolicyOpponent</text><text x="594" y="268" class="muted">复现同一条人类管线</text>
+      <path class="arrow" d="M520,90 L578,66"/>
+      <path class="arrow" d="M670,122 L670,98"/>
+      <path class="arrow" d="M670,222 L670,200"/>
+      <text x="800" y="22" class="muted">评估（eval/ · scripts/）</text>
+      <rect class="box" x="800" y="34" width="160" height="62"/><text x="814" y="58">对战评估</text><text x="814" y="80" class="muted">Wilson 95% CI · APM</text>
+      <rect class="box" x="800" y="110" width="160" height="62"/><text x="814" y="134">循环赛 BT-Elo</text><text x="814" y="156" class="muted">bootstrap CI</text>
+      <rect class="box" x="800" y="186" width="160" height="62"/><text x="814" y="210">利用者 PPO</text><text x="814" y="232" class="muted">可被利用性</text>
+      <rect class="box" x="800" y="262" width="160" height="50"/><text x="814" y="292">录像 / 人机对战</text>
+      <path class="arrow" d="M760,160 L798,141"/>
+      <path class="arrow" d="M760,253 L798,217"/>
+      <text x="290" y="330" class="muted">每次训练/评估都落 _env_stamp.json + 原始日志（jsonl/csv）+ result.json；PolicyOpponent 与包装器栈的逐帧一致性有单元测试。</text>
+    </svg>
+  </div>
+    <figure class="chart" id="ch-frames" role="img" aria-label="招式帧表"></figure>
+    <div class="legend"><span><i style="background:var(--c3)"></i>发生</span><span><i style="background:var(--p2)"></i>持续（有攻击判定）</span><span><i style="background:var(--c1)"></i>收招</span><span><i style="background:var(--gold)"></i>无敌帧</span></div>
+  </section>
+
+  <section>
+    <span class="eyebrow">EARLY RUNS</span>
+    <h2>早期实验：打 CPU 很容易，自博弈会持续变强</h2>
+    <p id="rp-early-text"></p>
+    <div class="twocol">
+      <figure class="chart" id="ch-exp1" role="img" aria-label="PPO 对脚本 CPU 的胜率随训练变化"></figure>
+      <figure class="chart" id="ch-exp2" role="img" aria-label="联赛快照 Elo 演化"></figure>
+    </div>
+    <div class="legend"><span><i style="background:var(--c1)"></i>对随机 CPU</span><span><i style="background:var(--c2)"></i>对贪心进攻 CPU</span><span><i style="background:var(--c3)"></i>对防守反击 CPU</span><span><i style="background:var(--c4)"></i>联赛快照 Elo（右图）</span></div>
+  </section>
+
+  <section>
+    <span class="eyebrow">SCALING</span>
+    <h2>网络越大越强吗</h2>
+    <p id="rp-scaling-text"></p>
+    <figure class="chart" id="ch-elo" role="img" aria-label="Elo 与参数量的关系"></figure>
+    <div class="legend"><span><i style="background:var(--c1)"></i>宽度轴（深度 2，人类条件，3 种子）</span><span><i style="background:var(--c2)"></i>深度变体：▼ 1 层 / ▲ 3 层</span><span><i style="background:var(--c3)"></i>无限制对照（0ms、不限 APM）</span><span><i style="background:var(--ink-3)"></i>脚本 CPU 区间</span></div>
+    <p class="cap" id="rp-elo-cap"></p>
+    <div class="twocol">
+      <figure class="chart" id="ch-h2h" role="img" aria-label="不同宽度之间的对战得分矩阵"></figure>
+      <div style="display:grid;gap:10px;align-content:start">
+        <h3>大网络对小网络</h3>
+        <p id="rp-h2h-text"></p>
+        <h3>算力对照：不加参数，只加训练</h3>
+        <figure class="chart" id="ch-compute" role="img" aria-label="同一网络不同训练步数的 Elo"></figure>
+        <p class="cap" id="rp-compute-text"></p>
+      </div>
+    </div>
+    <h3>对脚本 CPU</h3>
+    <figure class="chart" id="ch-cpu" role="img" aria-label="各大小网络对脚本 CPU 的胜率"></figure>
+    <div class="legend"><span><i style="background:var(--c1)"></i>随机 CPU</span><span><i style="background:var(--c2)"></i>贪心进攻 CPU</span><span><i style="background:var(--c3)"></i>防守反击 CPU</span></div>
+    <h3>大网络更难被针对吗</h3>
+    <figure class="chart" id="ch-exp" role="img" aria-label="针对各大小网络训练的利用者的学习曲线"></figure>
+    <p class="cap" id="rp-exp-text"></p>
+  </section>
+
+  <section>
+    <span class="eyebrow">KNOCKOUT</span>
+    <h2>敲掉一个神经元会怎样</h2>
+    <p id="rp-ko-text"></p>
+    <figure class="chart" id="ch-ko" role="img" aria-label="逐个敲除隐藏神经元后的得分下降"></figure>
+    <div class="twocol"><figure class="chart" id="ch-dose" role="img" aria-label="成组敲除的剂量反应"></figure><div id="ko-table"></div></div>
+    <div class="legend"><span><i style="background:var(--c1)"></i>隐藏层 1</span><span><i style="background:var(--c2)"></i>隐藏层 2</span><span><i style="background:var(--gold)"></i>筛选出的前 8 个（复核后效应基本消失）</span></div>
+    <h3>线性探针：各层"知道"哪些游戏概念</h3>
+    <figure class="chart" id="ch-probe" role="img" aria-label="线性探针准确率"></figure>
+    <div class="legend" id="lg-probe"></div>
+    <p class="cap" id="rp-probe-text"></p>
+  </section>
+
+  <section>
+    <span class="eyebrow">FAIRNESS</span>
+    <h2>人类条件：反应延迟与手速</h2>
+    <p id="rp-delay-text"></p>
+    <figure class="chart" id="ch-delay" role="img" aria-label="反应延迟与 APM 条件下的 Elo"></figure>
+    <p class="cap">早期实验（2×256 网络，联赛 6M 步，15 个模型同场循环赛，每对 100 局）。来源：results/exp3_delay/result.json。</p>
+  </section>
+
+  <section>
+    <span class="eyebrow">MEDIA</span>
+    <h2>演示录像</h2>
+    <div class="media" id="rp-media"></div>
+  </section>
+
+  <section>
+    <span class="eyebrow">REAL GAMES</span>
+    <h2>接入真实街机游戏的路线</h2>
+    <p>这台实验台用的是自带的小街机。框架本身与游戏解耦：环境、人类条件包装器、自博弈联赛、利用者、评估都只依赖一套统一的逐帧输入接口，换游戏只换一份配置。接真实游戏的常见路线：</p>
+    <div class="tbl"><table>
+      <thead><tr><th>路线</th><th>适合</th><th>条件</th><th>代价</th></tr></thead>
+      <tbody>
+        <tr><td>stable-retro（开源，MIT）</td><td>已有现成集成的主机版格斗游戏</td><td>Linux / macOS；ROM 自备</td><td>集成里通常有血量地址，可能缺坐标和 2P 存档</td></tr>
+        <tr><td>DIAMBRA Arena</td><td>它支持的几款街机格斗游戏</td><td>需要 Docker；ROM 自备</td><td>环境现成，但游戏列表固定</td></tr>
+        <tr><td>FBNeo / MAME 自建集成</td><td>任意街机游戏</td><td>Linux；ROM 自备</td><td>要自己找 RAM 地址（血量、坐标、回合、计时）、做 1P/2P 存档，每款约 1–3 人日</td></tr>
+      </tbody></table></div>
+    <p>无论哪条路线：ROM 必须是自己合法拥有的副本（本项目不提供、不下载 ROM）；真实模拟器比这台小街机慢一两个数量级，训练要放到 Linux 服务器上跑；评估时仍然要加上人类级反应延迟和手速上限，否则"打赢人类"没有意义。</p>
+    <p class="cap">详见仓库 docs/LANDSCAPE.md（格斗游戏强化学习的环境、论文与工具调研）和 envs/retro_adapter.py、envs/diambra_adapter.py。</p>
+  </section>
+
+  <section>
+    <span class="eyebrow">METHOD</span>
+    <h2>方法与局限</h2>
+    <p id="rp-method"></p>
+  </section>
+</div>
+
+
+<footer id="credits"></footer>
+<script src="assets/fight.js"></script>
+<script src="assets/brain.js"></script>
+<script src="assets/gen/spec.js"></script>
+<script src="assets/gen/models/index.js"></script>
+<script src="assets/render.js"></script>
+<script src="assets/audio.js"></script>
+<script src="assets/input.js"></script>
+<script src="assets/coach.js"></script>
+<script src="assets/brainview.js"></script>
+<script src="assets/gen/report_data.js"></script>
+<script src="assets/report.js"></script>
+<script src="assets/main.js"></script>
+
+</body>
+</html>

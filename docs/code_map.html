@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>格斗 RL 代码地图</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column; the module map is a full-width figure with a detail panel beside it (stacks on phones). */
+:root {
+  --bg: #F2F4F7;
+  --surface: #FFFFFF;
+  --ink: #161B26;
+  --muted: #586274;
+  --line: #D3D9E2;
+  --band: #E8ECF2;
+  --amber: #B86E00;      /* "this module uses" + selection */
+  --amber-fill: #FFF1D6;
+  --blue: #2C5FC4;       /* "used by" */
+  --red: #C2323D;        /* browser side + parity contracts */
+  --red-fill: #FCE8EA;
+  --code-bg: #EBEEF3;
+  --display: "Chakra Petch", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E121A; --surface: #161C27; --ink: #E5E9F0; --muted: #9AA4B5; --line: #2B3445; --band: #1B2230;
+    --amber: #F2B33D; --amber-fill: #3A2C10; --blue: #7FA5FF; --red: #F27178; --red-fill: #3A1B20; --code-bg: #1F2735;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E121A; --surface: #161C27; --ink: #E5E9F0; --muted: #9AA4B5; --line: #2B3445; --band: #1B2230;
+  --amber: #F2B33D; --amber-fill: #3A2C10; --blue: #7FA5FF; --red: #F27178; --red-fill: #3A1B20; --code-bg: #1F2735;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.7; padding-inline: 20px; padding-block: 0 64px; }
+.wrap { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
+header { padding-top: 48px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: end; }
+.eyebrow { font-family: var(--display); font-weight: 600; letter-spacing: .12em; text-transform: uppercase; font-size: 13px; color: var(--red); }
+h1 { font-family: var(--display); font-size: clamp(32px, 5vw, 52px); line-height: 1.1; margin: 8px 0 14px; text-wrap: balance; }
+h2 { font-family: var(--display); font-size: 26px; line-height: 1.25; margin: 0 0 6px; text-wrap: balance; }
+p { margin: 0; }
+.lede { max-width: 66ch; color: var(--muted); font-size: 16px; }
+.lede b { color: var(--ink); font-weight: 500; }
+.stats { display: grid; grid-template-columns: repeat(2, auto); gap: 6px 28px; font-variant-numeric: tabular-nums; }
+.stat b { display: block; font-family: var(--display); font-size: 28px; line-height: 1.1; }
+.stat span { font-size: 12.5px; color: var(--muted); }
+code, .mono { font-family: var(--mono); font-size: .88em; }
+code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; }
+section { display: flex; flex-direction: column; gap: 18px; }
+.sec-head { display: flex; flex-direction: column; gap: 4px; max-width: 72ch; }
+.sec-head p { color: var(--muted); }
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+figcaption { font-size: 13px; color: var(--muted); max-width: 80ch; }
+.scroller { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.scroller svg { display: block; width: 100%; height: auto; }
+.map-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+.map-grid .scroller svg { min-width: 860px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 22px; height: 0; border-top: 2px solid; display: inline-block; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 18px 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
+.panel .path { font-family: var(--mono); font-size: 14px; font-weight: 600; word-break: break-all; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-family: var(--mono); font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; background: var(--bg); color: var(--ink); cursor: pointer; }
+.chip:hover, .chip:focus-visible { border-color: var(--amber); outline: none; }
+.chip.dep { border-color: var(--amber); }
+.chip.user { border-color: var(--blue); }
+.chip.test { cursor: default; border-style: dashed; }
+.chip.static { cursor: default; }
+.panel h3 { font-size: 12px; letter-spacing: .08em; color: var(--muted); margin: 0; font-weight: 500; }
+.badges { display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+.badge { padding: 1px 8px; border-radius: 4px; background: var(--band); color: var(--muted); }
+.badge.js { background: var(--red-fill); color: var(--red); }
+.node { cursor: pointer; }
+.node:focus { outline: none; }
+.node:focus-visible rect.box { stroke: var(--amber); stroke-width: 2.5; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; min-width: 0; }
+ol.read { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 10px; max-width: 80ch; }
+ol.read li::marker { font-family: var(--display); font-weight: 700; color: var(--red); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 500; color: var(--muted); font-size: 12.5px; }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+pre.cmd { margin: 0; background: var(--code-bg); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.6; }
+pre.cmd .c { color: var(--muted); }
+footer.credit { border-top: 1px solid var(--line); padding-top: 16px; font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 8px; }
+@media (max-width: 900px) {
+  header { grid-template-columns: 1fr; }
+  .map-grid { grid-template-columns: 1fr; }
+  .panel { position: static; }
+}
+@media (max-width: 520px) {
+  body { padding-inline: 16px; }
+  .stats { grid-template-columns: 1fr 1fr; gap: 6px 16px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <div>
+    <div class="eyebrow">格斗大脑实验台 · 代码结构图</div>
+    <h1>格斗 RL 代码地图</h1>
+    <p class="lede">这个仓库做三件事：用 <b>自写的 2D 格斗游戏</b>当训练场，用 <b>PPO + 自博弈联赛</b>训练神经网络，再把训练好的真实权重搬进 <b>浏览器实验台</b>，一边对打一边看网络在想什么。实验台另外打包成双击就能玩的免安装版 <code>play/</code>。下面先看全局模块图，再看训练时一个动作怎样穿过六层包装器，然后看 Python 和浏览器两份实现靠哪些测试保持一致，最后是仓库里其余的文档和文件。</p>
+  </div>
+  <div class="stats" aria-label="仓库规模">
+    <div class="stat"><b>~6,300</b><span>行 Python（不含测试）</span></div>
+    <div class="stat"><b>~3,000</b><span>行浏览器 JS（arena）</span></div>
+    <div class="stat"><b>12</b><span>个测试文件 · 74 项测试</span></div>
+    <div class="stat"><b>214</b><span>维网络输入 · 31 个动作</span></div>
+  </div>
+</header>
+
+<section id="map">
+  <div class="sec-head">
+    <h2>全局模块图</h2>
+    <p>从上到下是八层：入口脚本 → 智能体与联赛 → 人类条件包装器 → 自带格斗环境 → 真实游戏适配器 → 评估与基础设施 → 实验台的构建与发布 → 浏览器实验台。点任意一个文件，图上会画出它依赖谁、谁依赖它，右侧给出它的职责。</p>
+  </div>
+  <div class="legend" aria-hidden="true">
+    <span><i style="border-color:var(--amber)"></i>选中的文件依赖它</span>
+    <span><i style="border-color:var(--blue)"></i>它依赖选中的文件</span>
+    <span><i style="border-color:var(--red);border-top-style:dashed"></i>读取配置 / 生成数据 / 逐帧对拍（不是 import）</span>
+  </div>
+  <div class="map-grid">
+    <figure>
+      <div class="scroller"><svg id="mapsvg" role="img" aria-label="仓库的八层模块图，点击文件可查看依赖关系"></svg></div>
+      <figcaption>框里是文件名（Python 文件省略 .py）和行数；虚线框是 JSON 配置文件。Python 之间的依赖由脚本解析每个文件的 import 语句得到；浏览器端 JS 的依赖、JSON 配置的读取和红色虚线按代码中的实际调用手工标注。</figcaption>
+    </figure>
+    <aside class="panel" id="panel" aria-live="polite"></aside>
+  </div>
+</section>
+
+<section id="step">
+  <div class="sec-head">
+    <h2>训练时，一个动作怎样走到游戏里</h2>
+    <p><code>envs/registry.py</code> 的 <code>wrap_env</code> 给游戏包了六层。网络的动作向下穿过每一层被改写成逐帧按键；游戏的状态向上穿过每一层被延迟、拼接，最后变成网络看到的 214 个数。</p>
+  </div>
+  <figure>
+    <div class="scroller">
+      <svg viewBox="0 0 1000 690" role="img" aria-label="包装器栈：动作从策略网络向下经过动作历史、指令宏、跳帧、观测延迟、粘滞动作、手速限制到达格斗核心；观测沿相反方向向上返回">
+        <defs>
+          <marker id="ah-d" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--amber)"/></marker>
+          <marker id="ah-u" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--blue)"/></marker>
+          <marker id="ah-r" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--red)"/></marker>
+        </defs>
+        <text x="270" y="24" text-anchor="end" font-size="13" font-weight="700" fill="var(--amber)">动作向下 ↓</text>
+        <text x="730" y="24" font-size="13" font-weight="700" fill="var(--blue)">↑ 观测向上</text>
+        <line x1="290" y1="44" x2="290" y2="570" stroke="var(--amber)" stroke-width="2.5" marker-end="url(#ah-d)"/>
+        <line x1="710" y1="570" x2="710" y2="44" stroke="var(--blue)" stroke-width="2.5" marker-end="url(#ah-u)"/>
+        <g font-size="12.5" fill="var(--ink)">
+          <!-- row template: box at x=310 w=380, y = 40 + i*66, h=50 -->
+          <rect x="310" y="40" width="380" height="50" rx="8" fill="var(--amber-fill)" stroke="var(--amber)"/>
+          <text x="500" y="61" text-anchor="middle" font-weight="700" font-size="14">策略网络 ActorCritic</text>
+          <text x="500" y="79" text-anchor="middle" fill="var(--muted)" font-size="11.5">agents/ppo.py · actor、critic 两个独立 tanh MLP</text>
+          <text x="275" y="60" text-anchor="end">从 31 个动作里采样一个</text>
+          <text x="275" y="77" text-anchor="end" fill="var(--muted)" font-size="11.5">27 个逐帧输入 + 4 个搓招宏</text>
+          <text x="725" y="60">214 维 = 90 维状态</text>
+          <text x="725" y="77" fill="var(--muted)" font-size="11.5">+ 124 维动作历史</text>
+
+          <rect x="310" y="106" width="380" height="50" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="500" y="127" text-anchor="middle" font-weight="700" font-size="14">ActionHistory</text>
+          <text x="500" y="145" text-anchor="middle" fill="var(--muted)" font-size="11.5">wrappers/frame_skip.py</text>
+          <text x="275" y="135" text-anchor="end" fill="var(--muted)">原样下传</text>
+          <text x="725" y="126">拼上最近 4 次动作</text>
+          <text x="725" y="143" fill="var(--muted)" font-size="11.5">one-hot，4 × 31 = 124 维</text>
+
+          <rect x="310" y="172" width="380" height="50" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="500" y="193" text-anchor="middle" font-weight="700" font-size="14">MacroActions</text>
+          <text x="500" y="211" text-anchor="middle" fill="var(--muted)" font-size="11.5">wrappers/frame_skip.py + macros.py</text>
+          <text x="275" y="192" text-anchor="end">动作 27–30 展开成搓招</text>
+          <text x="275" y="209" text-anchor="end" fill="var(--muted)" font-size="11.5">236L：↓ ↘ →+轻拳，共 4 帧</text>
+          <text x="725" y="201" fill="var(--muted)">原样上传</text>
+
+          <rect x="310" y="238" width="380" height="50" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="500" y="259" text-anchor="middle" font-weight="700" font-size="14">FrameSkip（k = 4）</text>
+          <text x="500" y="277" text-anchor="middle" fill="var(--muted)" font-size="11.5">wrappers/frame_skip.py</text>
+          <text x="275" y="258" text-anchor="end">一次决策推进 4 帧</text>
+          <text x="275" y="275" text-anchor="end" fill="var(--muted)" font-size="11.5">60 FPS 下每秒 15 次决策</text>
+          <text x="725" y="267">4 帧的奖励求和</text>
+
+          <rect x="310" y="304" width="380" height="50" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="500" y="325" text-anchor="middle" font-weight="700" font-size="14">ObservationDelay（12 帧）</text>
+          <text x="500" y="343" text-anchor="middle" fill="var(--muted)" font-size="11.5">wrappers/human.py · 人类条件</text>
+          <text x="275" y="333" text-anchor="end" fill="var(--muted)">原样下传</text>
+          <text x="725" y="324">交出 12 帧前的观测</text>
+          <text x="725" y="341" fill="var(--muted)" font-size="11.5">= 200ms 反应延迟</text>
+
+          <rect x="310" y="370" width="380" height="50" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-dasharray="5 4"/>
+          <text x="500" y="391" text-anchor="middle" font-weight="700" font-size="14">StickyActions（可选）</text>
+          <text x="500" y="409" text-anchor="middle" fill="var(--muted)" font-size="11.5">wrappers/human.py · 规模实验中 p = 0，未启用</text>
+          <text x="275" y="390" text-anchor="end">以概率 p 沿用上一帧输入</text>
+          <text x="275" y="407" text-anchor="end" fill="var(--muted)" font-size="11.5">模拟手指不精确</text>
+          <text x="725" y="399" fill="var(--muted)">原样上传</text>
+
+          <rect x="310" y="436" width="380" height="50" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="500" y="457" text-anchor="middle" font-weight="700" font-size="14">APMLimit（≤ 600 次/分）</text>
+          <text x="500" y="475" text-anchor="middle" fill="var(--muted)" font-size="11.5">wrappers/human.py · 令牌桶 · 人类条件</text>
+          <text x="275" y="456" text-anchor="end">令牌不够时保持上一帧输入</text>
+          <text x="275" y="473" text-anchor="end" fill="var(--muted)" font-size="11.5">新的方向或按键各耗 1 个令牌</text>
+          <text x="725" y="465">结束时报告实际 APM</text>
+
+          <rect x="310" y="502" width="380" height="64" rx="8" fill="var(--band)" stroke="var(--ink)" stroke-width="1.5"/>
+          <text x="500" y="526" text-anchor="middle" font-weight="700" font-size="14">Fighting2DEnv → FightingCore.step(p1, p2)</text>
+          <text x="500" y="546" text-anchor="middle" fill="var(--muted)" font-size="11.5">envs/fighting2d/env.py · core.py（610 行）· 60 FPS 逻辑帧</text>
+          <text x="275" y="525" text-anchor="end">逐帧输入 0–26</text>
+          <text x="275" y="542" text-anchor="end" fill="var(--muted)" font-size="11.5">9 个相对方向 × {无, 轻, 重}</text>
+          <text x="725" y="520">observe(p)：90 维状态</text>
+          <text x="725" y="537" fill="var(--muted)" font-size="11.5">镜像成“自己朝右”的视角</text>
+          <text x="725" y="554" fill="var(--muted)" font-size="11.5">奖励 = 伤害差 / 满血 ± 胜负</text>
+
+          <rect x="310" y="612" width="380" height="54" rx="8" fill="var(--surface)" stroke="var(--red)"/>
+          <text x="500" y="634" text-anchor="middle" font-weight="700" font-size="14">对手 OpponentPool</text>
+          <text x="500" y="653" text-anchor="middle" fill="var(--muted)" font-size="11.5">league/pool.py · 脚本 CPU 25% + 历史快照（按 PFSP 加权）</text>
+          <line x1="500" y1="610" x2="500" y2="572" stroke="var(--red)" stroke-width="2" marker-end="url(#ah-r)"/>
+          <text x="512" y="596" fill="var(--red)" font-size="11.5">每帧 act(core, idx) 给出对手按键</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>包装顺序见 <code>wrap_env</code>：内层是 APMLimit，外层是 ActionHistory。对手如果也是神经网络，会通过 <code>agents/policy_opponent.py</code> 走一条逐帧等价的同款管线，由 <code>tests/test_policy_opponent.py</code> 保证两者一致，所以“评估出来的强度”就是“训练出来的那个模型”的强度。网页里人类玩家的新手模式（U / I 一键出招）也是把同一个 4 帧搓招宏逐帧按出来，见 <code>arena/web/assets/input.js</code>，方向和按键照样计入手速。</figcaption>
+  </figure>
+</section>
+
+<section id="twins">
+  <div class="sec-head">
+    <h2>一套规则，两份实现</h2>
+    <p>浏览器实验台不调用 Python。游戏规则和神经网络在 JS 里各重写了一遍，靠四个测试锁住和 Python 版完全一致。红色虚线就是这些“对拍”契约。</p>
+  </div>
+  <figure>
+    <div class="scroller">
+      <svg viewBox="0 0 1000 400" role="img" aria-label="左列为 Python 训练端，右列为浏览器端，中间四条红色虚线标出逐帧对拍的测试">
+        <defs>
+          <marker id="ah-k" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker>
+        </defs>
+        <text x="170" y="28" text-anchor="middle" font-size="14" font-weight="700" fill="var(--ink)">Python · 训练与评估</text>
+        <text x="830" y="28" text-anchor="middle" font-size="14" font-weight="700" fill="var(--red)">浏览器 · arena 实验台</text>
+        <g font-size="12.5" fill="var(--ink)">
+          <rect x="40" y="50" width="260" height="56" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="170" y="74" text-anchor="middle" font-weight="700">envs/fighting2d/core.py</text>
+          <text x="170" y="93" text-anchor="middle" fill="var(--muted)" font-size="11.5">游戏规则 · 帧数据 · 判定框</text>
+          <rect x="700" y="50" width="260" height="56" rx="8" fill="var(--red-fill)" stroke="var(--red)"/>
+          <text x="830" y="74" text-anchor="middle" font-weight="700">fight.js</text>
+          <text x="830" y="93" text-anchor="middle" fill="var(--muted)" font-size="11.5">core.py 的逐行移植</text>
+
+          <rect x="40" y="136" width="260" height="56" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="170" y="160" text-anchor="middle" font-weight="700">agents/ppo.py · ActorCritic</text>
+          <text x="170" y="179" text-anchor="middle" fill="var(--muted)" font-size="11.5">训练出 runs/…/final.pt</text>
+          <rect x="700" y="136" width="260" height="56" rx="8" fill="var(--red-fill)" stroke="var(--red)"/>
+          <text x="830" y="160" text-anchor="middle" font-weight="700">brain.js · Net</text>
+          <text x="830" y="179" text-anchor="middle" fill="var(--muted)" font-size="11.5">前向 · 价值 · 输入梯度 · 敲除</text>
+
+          <rect x="40" y="222" width="260" height="56" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="170" y="246" text-anchor="middle" font-weight="700">agents/policy_opponent.py</text>
+          <text x="170" y="265" text-anchor="middle" fill="var(--muted)" font-size="11.5">评估与联赛里的网络对手</text>
+          <rect x="700" y="222" width="260" height="56" rx="8" fill="var(--red-fill)" stroke="var(--red)"/>
+          <text x="830" y="246" text-anchor="middle" font-weight="700">brain.js · BrainPlayer</text>
+          <text x="830" y="265" text-anchor="middle" fill="var(--muted)" font-size="11.5">延迟、跳帧、宏、APM 同一条管线</text>
+
+          <rect x="40" y="308" width="260" height="56" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="170" y="332" text-anchor="middle" font-weight="700">envs/fighting2d/obs_spec.py</text>
+          <text x="170" y="351" text-anchor="middle" fill="var(--muted)" font-size="11.5">90 维观测的中文名与分组</text>
+          <rect x="700" y="308" width="260" height="56" rx="8" fill="var(--red-fill)" stroke="var(--red)"/>
+          <text x="830" y="332" text-anchor="middle" font-weight="700">brainview.js</text>
+          <text x="830" y="351" text-anchor="middle" fill="var(--muted)" font-size="11.5">大脑面板上的输入标签</text>
+        </g>
+        <g stroke="var(--red)" stroke-width="2" stroke-dasharray="6 5" fill="none">
+          <line x1="300" y1="78" x2="700" y2="78"/>
+          <line x1="300" y1="164" x2="700" y2="164"/>
+          <line x1="300" y1="250" x2="700" y2="250"/>
+          <line x1="300" y1="336" x2="700" y2="336"/>
+        </g>
+        <g font-size="11.5" fill="var(--red)" text-anchor="middle">
+          <rect x="400" y="66" width="200" height="24" rx="12" fill="var(--bg)"/>
+          <text x="500" y="82" font-family="JetBrains Mono, monospace">test_js_parity · 逐帧</text>
+          <rect x="390" y="152" width="220" height="24" rx="12" fill="var(--bg)"/>
+          <text x="500" y="168" font-family="JetBrains Mono, monospace">test_arena_brain · logits/梯度</text>
+          <rect x="380" y="238" width="240" height="24" rx="12" fill="var(--bg)"/>
+          <text x="500" y="254" font-family="JetBrains Mono, monospace">test_arena_brain · 确定性对局</text>
+          <rect x="400" y="324" width="200" height="24" rx="12" fill="var(--bg)"/>
+          <text x="500" y="340" font-family="JetBrains Mono, monospace">test_obs_spec · 逐维</text>
+        </g>
+        <g fill="var(--muted)" font-size="11.5">
+          <path d="M300 186 C 360 210, 360 210, 420 205" stroke="var(--muted)" stroke-width="1.5" fill="none" marker-end="url(#ah-k)"/>
+          <text x="426" y="209">arena/export.py 导出真实权重（f32 / f16）→ assets/gen/*.js →</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>浏览器端看到的网络就是训练出来的那个网络：<code>arena/export.py</code> 把 actor 和 critic 的真实权重、特征表和动作名导出成 JS 文件，页面按需加载。招式显示名和角色外观只在 <code>envs/fighting2d/naming.json</code> 写一次，Python 的 <code>obs_spec.py</code> 和网页都读它，两边的名字不会对不上。纯视觉的部分（<code>render.js</code> 的动画、火花、震屏，<code>coach.js</code> 的新手引导）只读游戏状态，不改它，所以不影响逐帧一致。</figcaption>
+  </figure>
+</section>
+
+<section id="pipeline">
+  <div class="sec-head">
+    <h2>一次实验从清单到网页</h2>
+    <p>规模实验（51 个模型）就是这样跑出来的。每个环节都把产物落盘，后一个环节只读前一个环节的文件。</p>
+  </div>
+  <figure>
+    <div class="scroller">
+      <svg viewBox="0 0 1180 190" style="min-width:860px" role="img" aria-label="实验流水线：作业清单、作业队列、训练、运行目录、循环赛、分析、结果文件、网页报告">
+        <defs>
+          <marker id="ah-p" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker>
+        </defs>
+        <g font-size="12.5" fill="var(--ink)" text-anchor="middle">
+          <rect x="10" y="40" width="128" height="74" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="74" y="66" font-weight="700">作业清单</text>
+          <text x="74" y="85" fill="var(--muted)" font-size="11" font-family="JetBrains Mono, monospace">scaling/plan.py</text>
+          <text x="74" y="102" fill="var(--muted)" font-size="11">宽度×深度×种子</text>
+
+          <rect x="158" y="40" width="128" height="74" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="222" y="66" font-weight="700">作业队列</text>
+          <text x="222" y="85" fill="var(--muted)" font-size="11" font-family="JetBrains Mono, monospace">jobqueue.py</text>
+          <text x="222" y="102" fill="var(--muted)" font-size="11">或服务器任务队列</text>
+
+          <rect x="306" y="40" width="128" height="74" rx="8" fill="var(--amber-fill)" stroke="var(--amber)"/>
+          <text x="370" y="66" font-weight="700">训练</text>
+          <text x="370" y="85" fill="var(--muted)" font-size="11" font-family="JetBrains Mono, monospace">train.py</text>
+          <text x="370" y="102" fill="var(--muted)" font-size="11">PPO + 联赛</text>
+
+          <rect x="454" y="40" width="148" height="74" rx="8" fill="var(--band)" stroke="var(--line)"/>
+          <text x="528" y="66" font-weight="700">运行目录</text>
+          <text x="528" y="85" fill="var(--muted)" font-size="11" font-family="JetBrains Mono, monospace">runs/…/seedN/</text>
+          <text x="528" y="102" fill="var(--muted)" font-size="11">快照·final.pt·日志</text>
+
+          <rect x="622" y="40" width="128" height="74" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="686" y="66" font-weight="700">循环赛</text>
+          <text x="686" y="85" fill="var(--muted)" font-size="11" font-family="JetBrains Mono, monospace">tournament.py</text>
+          <text x="686" y="102" fill="var(--muted)" font-size="11">BT-Elo + 置信区间</text>
+
+          <rect x="770" y="40" width="128" height="74" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="834" y="66" font-weight="700">分析</text>
+          <text x="834" y="85" fill="var(--muted)" font-size="11" font-family="JetBrains Mono, monospace">analyze / knockout</text>
+          <text x="834" y="102" fill="var(--muted)" font-size="11">出图、算统计量</text>
+
+          <rect x="918" y="40" width="118" height="74" rx="8" fill="var(--band)" stroke="var(--line)"/>
+          <text x="977" y="66" font-weight="700">结果文件</text>
+          <text x="977" y="85" fill="var(--muted)" font-size="11" font-family="JetBrains Mono, monospace">result.json</text>
+          <text x="977" y="102" fill="var(--muted)" font-size="11">数字的唯一来源</text>
+
+          <rect x="1056" y="40" width="114" height="74" rx="8" fill="var(--red-fill)" stroke="var(--red)"/>
+          <text x="1113" y="66" font-weight="700">网页报告</text>
+          <text x="1113" y="85" fill="var(--muted)" font-size="11" font-family="JetBrains Mono, monospace">export / build</text>
+          <text x="1113" y="102" fill="var(--muted)" font-size="11">实验台 · play/</text>
+        </g>
+        <g stroke="var(--muted)" stroke-width="1.6" marker-end="url(#ah-p)">
+          <line x1="140" y1="77" x2="154" y2="77"/>
+          <line x1="288" y1="77" x2="302" y2="77"/>
+          <line x1="436" y1="77" x2="450" y2="77"/>
+          <line x1="604" y1="77" x2="618" y2="77"/>
+          <line x1="752" y1="77" x2="766" y2="77"/>
+          <line x1="900" y1="77" x2="914" y2="77"/>
+          <line x1="1038" y1="77" x2="1052" y2="77"/>
+        </g>
+        <g font-size="11.5" fill="var(--muted)">
+          <text x="10" y="150">每次运行都写 <tspan font-family="JetBrains Mono, monospace">_env_stamp.json</tspan>（环境、参数、种子、git 版本），报告里的每个数字都能用键路径在 result.json 里找到。</text>
+          <text x="10" y="172">训练时联赛每隔一段把当前网络存成快照放进对手池；对手按“我对它胜率越低越常抽到”加权（PFSP），并保留 25% 脚本 CPU 当锚点。</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption><code>runs/</code> 是训练时在本地生成的目录（checkpoint 和原始日志），不进仓库；仓库里只有 <code>results/</code> 下的小结果，以及 <code>play/</code> 里导出好的精选模型。</figcaption>
+  </figure>
+</section>
+
+<section id="tests">
+  <div class="sec-head">
+    <h2>测试在守什么</h2>
+    <p>74 项测试分成三类：规则对不对、两份实现一不一样、展示有没有说谎。没有 quickjs、Chrome/Edge 或导出的模型时，相关测试自动跳过。</p>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th style="width:28%">测试文件</th><th style="width:30%">守护的文件</th><th>它保证的事</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">test_core.py</td><td class="mono">core.py</td><td>命中、防御上下段、飞行道具、无敌、投技与拆投、连段、回合结束、双方观测对称</td></tr>
+        <tr><td class="mono">test_wrappers.py</td><td class="mono">human.py · frame_skip.py · macros.py</td><td>跳帧只按第一帧、宏真的打出气功波、延迟交出旧观测、手速限制生效、整栈能跑完一局</td></tr>
+        <tr><td class="mono">test_policy_opponent.py</td><td class="mono">policy_opponent.py</td><td>评估用的网络对手与训练时的包装器栈逐帧等价</td></tr>
+        <tr><td class="mono">test_league.py</td><td class="mono">elo.py · pool.py · match.py · stats.py</td><td>Bradley–Terry 能还原真实评分、对手池按概率抽样、脚本 CPU 难度递增</td></tr>
+        <tr><td class="mono">test_js_parity.py</td><td class="mono">fight.js ⇄ core.py</td><td>浏览器版与 Python 版逐帧完全一致（QuickJS 运行）</td></tr>
+        <tr><td class="mono">test_arena_brain.py</td><td class="mono">brain.js ⇄ ppo.py</td><td>logits、价值、输入梯度与 PyTorch 一致；敲除神经元生效；积分梯度满足完备性；半精度误差可控；BrainPlayer 与 PolicyOpponent 确定性对局一致</td></tr>
+        <tr><td class="mono">test_obs_spec.py</td><td class="mono">obs_spec.py ⇄ core.observe</td><td>大脑面板上的 90 个特征名与实际观测逐维对应</td></tr>
+        <tr><td class="mono">test_arena_browser.py</td><td class="mono">main.js · brainview.js · capture.py</td><td>在无头浏览器里加载真实模型、打完开场、切「全部」大脑、敲神经元，全程无 JS 异常</td></tr>
+        <tr><td class="mono">test_adapters.py</td><td class="mono">adapter_base · retro · diambra</td><td>用假的模拟器模块验证按键映射、朝向镜像、RAM 到奖励的换算</td></tr>
+        <tr><td class="mono">test_devserver.py</td><td class="mono">arena/__main__.py · main.js</td><td>本地服务不残留：/shutdown 立即退出、心跳超时自动退出；真实页面点「退出」后服务关闭并显示结束页</td></tr>
+        <tr><td class="mono">test_play_release.py</td><td class="mono">play/ · coach.js · input.js · main.js</td><td>免安装版在 file:// 下端到端可用：说明浮层、本地字体、页脚署名、观战、敲除、键盘、手搓与新手键必杀技、练习任务</td></tr>
+        <tr><td class="mono">test_play_vs_ai.py</td><td class="mono">play_vs_ai.py</td><td>键盘按键到逐帧输入的换算</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:13px;color:var(--muted);max-width:80ch">pytest 之外还有一道验收：<code>python -m arena.browser_check</code> 用本机 Chrome/Edge 以 file:// 打开 <code>play/index.html</code>，在两种分辨率下逐项检查操作说明、观战与双脑、神经元敲除、键盘对战、手搓气功波、新手键和练习模式，结果写进 <code>release/browser_check.json</code>。</p>
+</section>
+
+<section id="files">
+  <div class="sec-head">
+    <h2>代码之外：仓库里还有什么</h2>
+    <p>只想玩的人只需要 <code>play/</code>；想读懂、复现或引用，看下面这些。</p>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th style="width:28%">路径</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">play/</td><td>构建好的免安装版：双击 <code>index.html</code> 即可，不需要 Python、不需要联网；模型（float16）、字体、录像都在 <code>play/assets/</code>。可以直接作为 GitHub Pages 发布。由 <code>python -m arena.build --release</code> 生成</td></tr>
+        <tr><td class="mono">results/</td><td>进仓库的小结果：各实验的 <code>result.json</code>、图、录像截图与 gif，网页「实验报告」的数字都来自这里</td></tr>
+        <tr><td class="mono">envs/game_specs/</td><td>真实街机游戏的配置（RAM 地址、按键表），配合 retro / DIAMBRA 适配器使用；ROM 需要自己合法拥有</td></tr>
+        <tr><td class="mono">docs/ENV_SPEC.md</td><td>自带格斗小环境的规格：帧数据、判定、上中下段、指令必杀、回合制</td></tr>
+        <tr><td class="mono">docs/ARENA.md</td><td>格斗大脑实验台说明：界面上每个元素的含义、怎么用</td></tr>
+        <tr><td class="mono">docs/DEMO.md</td><td>课堂演示脚本（5 分钟）：观战 → 看大脑 → 换小网络 → 敲神经元 → 请同学上手</td></tr>
+        <tr><td class="mono">docs/LANDSCAPE.md</td><td>格斗游戏强化学习生态调研</td></tr>
+        <tr><td class="mono">docs/code_map.html</td><td>本页：交互式代码地图</td></tr>
+        <tr><td class="mono">README.md</td><td>项目介绍、玩法与键位、实验结论摘要、训练与复现命令</td></tr>
+        <tr><td class="mono">requirements.txt</td><td>训练与分析的依赖（torch 按显卡单独安装）；只想玩不需要任何依赖</td></tr>
+        <tr><td class="mono">LICENSE · LICENSE-docs</td><td>代码采用 MIT；文档与教学素材采用 CC BY 4.0</td></tr>
+        <tr><td class="mono">CITATION.cff</td><td>引用信息，GitHub 页面上「Cite this repository」可直接导出</td></tr>
+        <tr><td class="mono">THIRD_PARTY.md</td><td>第三方组件与字体的来源和许可证</td></tr>
+        <tr><td class="mono">credits.json</td><td>署名与系列信息配置，见模块图里的「实验台构建与发布」一层</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="read">
+  <div class="sec-head">
+    <h2>第一次读代码，按这个顺序</h2>
+    <p>每一步只读一两个文件，读完就能看懂下一步。</p>
+  </div>
+  <div class="cols">
+    <div class="card">
+      <ol class="read">
+        <li><code>envs/fighting2d/constants.py</code> 和 <code>moves.py</code>：按键怎么编码成 0–26，每个招式的发生、持续、收招帧。</li>
+        <li><code>envs/fighting2d/core.py</code> 的 <code>step</code> 和 <code>observe</code>：一帧里发生了什么，网络看到的 90 个数从哪来。</li>
+        <li><code>envs/registry.py</code> 的 <code>wrap_env</code>，再看 <code>wrappers/human.py</code>：人类条件是怎么加上去的。</li>
+        <li><code>agents/ppo.py</code> 和 <code>scripts/train.py</code> 里的 <code>League</code>：网络结构、PPO 更新、对手怎么抽。</li>
+        <li><code>agents/policy_opponent.py</code>：为什么评估时的网络和训练时一模一样。</li>
+        <li><code>arena/export.py</code> → <code>brain.js</code> → <code>brainview.js</code>：权重怎么进浏览器、大脑面板怎么画。</li>
+        <li><code>input.js</code> 和 <code>coach.js</code>：人类玩家的输入、新手模式的一键搓招，以及操作说明、招式表和练习模式。</li>
+      </ol>
+    </div>
+    <div class="card" style="display:flex;flex-direction:column;gap:10px">
+      <h3 style="margin:0;font-size:15px">四条最常用的命令</h3>
+<pre class="cmd"><span class="c"># 自博弈联赛训练，带 200ms 反应延迟和手速上限</span>
+python scripts/train.py --mode league --delay-ms 200 --apm 600 --out runs/my/seed0
+
+<span class="c"># 按清单跑完整的规模实验（本机 3 个并行）</span>
+python -m experiments.scaling.plan run --parallel 3
+
+<span class="c"># 打开格斗大脑实验台（导出本地训练的模型）</span>
+python -m arena
+
+<span class="c"># 重新生成免安装版 play/ 和 release/*.zip</span>
+python -m arena.build --release</pre>
+      <p style="font-size:13px;color:var(--muted)">训练默认用 CPU：网络很小，CPU 比 GPU 快，也不占显存。只想玩的话不用跑任何命令，双击 <code>play/index.html</code>。</p>
+    </div>
+  </div>
+</section>
+
+<footer class="credit">
+  <span>Shuyao Gao</span><span aria-hidden="true">·</span>
+  <span>aSSIST University (Seoul School of Integrated Sciences and Technologies)</span><span aria-hidden="true">·</span>
+  <span lang="ko">서울과학종합대학원대학교</span><span aria-hidden="true">·</span>
+  <span>文档 CC BY 4.0</span>
+</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var ROWS = [
+    { label: "入口与实验脚本", ids: ["scripts/train.py", "experiments/scaling/plan.py", "scripts/tournament.py", "scripts/analyze.py", "experiments/scaling/analyze.py", "experiments/scaling/knockout.py", "scripts/play_vs_ai.py"] },
+    { label: "智能体与联赛", ids: ["agents/ppo.py", "agents/scripted.py", "agents/policy_opponent.py", "agents/numpy_policy.py", "league/pool.py", "league/elo.py"] },
+    { label: "人类条件包装器", ids: ["wrappers/human.py", "wrappers/frame_skip.py", "wrappers/macros.py", "wrappers/observation.py"] },
+    { label: "自带格斗环境", ids: ["envs/registry.py", "envs/fighting2d/core.py", "envs/fighting2d/env.py", "envs/fighting2d/moves.py", "envs/fighting2d/constants.py", "envs/fighting2d/obs_spec.py", "envs/fighting2d/naming.json", "envs/fighting2d/render.py"] },
+    { label: "真实游戏适配器（需要 ROM 和 Linux）", ids: ["envs/adapter_base.py", "envs/retro_adapter.py", "envs/diambra_adapter.py"] },
+    { label: "评估与基础设施", ids: ["eval/match.py", "eval/stats.py", "eval/record.py", "common/vec_env.py", "common/stamp.py", "scripts/jobqueue.py"] },
+    { label: "实验台构建与发布", ids: ["arena/__main__.py", "arena/export.py", "arena/build.py", "arena/fonts.py", "arena/capture.py", "arena/browser_check.py", "credits.json", "tools/fill_credits.py"] },
+    { label: "浏览器实验台（JS）", ids: ["arena/web/assets/main.js", "arena/web/assets/fight.js", "arena/web/assets/brain.js", "arena/web/assets/brainview.js", "arena/web/assets/render.js", "arena/web/assets/input.js", "arena/web/assets/coach.js", "arena/web/assets/audio.js", "arena/web/assets/report.js"] }
+  ];
+  // [label, lines (null = not counted), role, key definitions, dependencies]
+  var M = {
+    "scripts/train.py": ["train.py", 274, "训练入口。三种模式：打脚本 CPU、自博弈联赛、利用者。联赛（League 类）就写在这个文件里：存快照、按 PFSP 抽对手、在线 Elo。", ["class League", "main"], ["agents/ppo.py", "common/vec_env.py", "common/stamp.py", "envs/registry.py", "eval/match.py", "league/elo.py"]],
+    "experiments/scaling/plan.py": ["scaling/plan.py", 101, "规模实验的作业清单，是实验设计的唯一来源：宽度 8–512 × 深度 × 3 个种子，人类条件 200ms + APM≤600，每个 8M 步。可以交给本机作业队列，也可以打印成服务器任务队列的命令。", ["train_job", "jobs", "main"], ["scripts/jobqueue.py"]],
+    "scripts/tournament.py": ["tournament.py", 123, "循环赛：任意一组模型两两对打，用 Bradley–Terry 拟合 Elo，并 bootstrap 出 95% 置信区间。", ["run_tournament", "summarize"], ["common/stamp.py", "eval/match.py", "league/elo.py"]],
+    "scripts/analyze.py": ["scripts/analyze.py", 499, "早期实验（exp1–exp5）的分析：读训练日志、跑循环赛、出图、写 results/*/result.json。", ["exp1", "exp2", "exp3", "exp4"], ["common/stamp.py", "eval/match.py", "eval/stats.py", "scripts/tournament.py"]],
+    "experiments/scaling/analyze.py": ["scaling/analyze.py", 293, "规模实验的分析：51 个模型的全体循环赛、Elo 对参数量、对脚本 CPU 胜率、利用者结果、算力对照。", ["cmd_tournament", "cmd_report", "exploiter_results"], ["common/stamp.py", "scripts/tournament.py"]],
+    "experiments/scaling/knockout.py": ["knockout.py", 335, "神经元敲除和线性探针：逐个或成组关掉隐藏神经元看胜率掉多少，再看神经元和哪些游戏概念相关。", ["importance_scores", "logistic_probe", "group_masks"], ["agents/numpy_policy.py", "agents/policy_opponent.py", "common/stamp.py", "envs/fighting2d/core.py", "envs/fighting2d/obs_spec.py", "eval/match.py", "experiments/scaling/analyze.py", "league/pool.py"]],
+    "scripts/play_vs_ai.py": ["play_vs_ai.py", 149, "桌面版人机对战（tkinter）：键盘对训练好的模型或脚本 CPU，记录战绩。浏览器实验台出现之前的版本。", ["keys_to_input", "main"], ["envs/fighting2d/constants.py", "envs/fighting2d/core.py", "envs/fighting2d/render.py", "league/pool.py", "scripts/tournament.py", "wrappers/human.py"]],
+    "agents/ppo.py": ["ppo.py", 237, "CleanRL 风格的单文件 PPO。ActorCritic 是两个独立的 tanh MLP（actor 出 31 个动作的 logits，critic 出局势评估），宽度和层数可配。", ["class PPOConfig", "class ActorCritic", "class PPOTrainer", "export_numpy"], []],
+    "agents/scripted.py": ["scripted.py", 283, "脚本 CPU 对手：随机、贪心、防守反击、乱按。相当于街机里的电脑，也是 Elo 的固定锚点。", ["class RandomBot", "class GreedyBot", "class CounterBot", "class MasherBot"], ["envs/fighting2d/constants.py", "envs/fighting2d/env.py", "wrappers/macros.py"]],
+    "agents/policy_opponent.py": ["policy_opponent.py", 91, "把 numpy 化的网络包装成逐帧对手，复刻训练时的整条人类条件管线：延迟、每 4 帧决策、宏、APM、动作历史。", ["class PolicyOpponent"], ["agents/numpy_policy.py", "envs/fighting2d/constants.py", "envs/fighting2d/env.py", "wrappers/human.py", "wrappers/macros.py"]],
+    "agents/numpy_policy.py": ["numpy_policy.py", 49, "不依赖 PyTorch 的前向计算，对手池和评估用它，快，也能放进任何子进程。支持用 mask 敲掉神经元。", ["class NumpyPolicy"], []],
+    "league/pool.py": ["pool.py", 70, "对手规格（spec）与对手池。spec 是可序列化的小字典：脚本 CPU、某个快照、或按概率混合的池子。", ["make_opponent", "class OpponentPool"], ["agents/policy_opponent.py", "agents/scripted.py", "envs/fighting2d/env.py"]],
+    "league/elo.py": ["elo.py", 85, "两种 Elo：训练中在线更新看趋势；循环赛后用 Bradley–Terry 最大似然拟合正式评分。", ["class EloTracker", "fit_bradley_terry", "bootstrap_bt"], []],
+    "wrappers/human.py": ["human.py", 102, "人类条件：观测延迟（200ms = 12 帧）、粘滞动作、手速令牌桶。必须直接包在游戏外面，按帧生效。", ["class ObservationDelay", "class StickyActions", "class APMLimit", "input_cost"], ["envs/fighting2d/constants.py"]],
+    "wrappers/frame_skip.py": ["frame_skip.py", 93, "智能体层包装：一次决策推进 4 帧（按键只按第一帧）、把宏动作展开成搓招序列、把最近 4 次动作拼进观测。", ["class FrameSkip", "class MacroActions", "class ActionHistory"], ["wrappers/macros.py"]],
+    "wrappers/macros.py": ["macros.py", 56, "统一动作空间：27 种逐帧输入 + 4 个搓招宏（236L/236H 气功波、623L/623H 冲天拳）。宏只是一次按出人类会按的序列，每一下都计入手速。网页新手模式的 U / I 键按出的也是这 4 个宏。", ["MACROS", "expand", "action_name"], ["envs/fighting2d/constants.py"]],
+    "wrappers/observation.py": ["observation.py", 43, "观测选择：默认用 RAM 特征向量；也可以改用缩放后的像素帧（真实游戏备用）。", ["class PixelObservation", "class RamFeatureSelect"], []],
+    "envs/registry.py": ["registry.py", 91, "统一环境工厂。一份 EnvConfig 决定游戏（自带 / stable-retro / DIAMBRA）和人类条件，wrap_env 按固定顺序叠上包装器。训练脚本只和这里打交道。", ["class EnvConfig", "wrap_env", "make_env", "class EnvFactory"], ["envs/diambra_adapter.py", "envs/retro_adapter.py", "envs/fighting2d/env.py", "league/pool.py", "wrappers/human.py", "wrappers/frame_skip.py", "wrappers/observation.py"]],
+    "envs/fighting2d/core.py": ["core.py", 610, "游戏规则本体。step(p1, p2) 推进一帧：帧数据、判定框与受击框、上中下段防御、搓招、连段递减、飞行道具对消、起身无敌。observe(p) 给出 90 维观测。", ["class FightingCore", "class Fighter", "class Projectile", "step", "observe"], ["envs/fighting2d/constants.py", "envs/fighting2d/moves.py"]],
+    "envs/fighting2d/env.py": ["env.py", 129, "Gymnasium 接口。Fighting2DEnv：单智能体，对手内嵌，一步一帧，奖励 = 伤害差 / 满血 ± 胜负。Fighting2DDuel：双人原始接口。", ["class Fighting2DEnv", "class Fighting2DDuel", "class Opponent"], ["envs/fighting2d/constants.py", "envs/fighting2d/core.py", "envs/fighting2d/render.py"]],
+    "envs/fighting2d/moves.py": ["moves.py", 74, "招式表：每个招式的发生、持续、收招帧，伤害、判定框、上中下段属性。", ["class Move", "MOVES", "MOVE_BY_NAME"], []],
+    "envs/fighting2d/constants.py": ["constants.py", 79, "常量与输入编码：9 个相对方向（数字键盘记法，6 = 前）× {无, 轻, 重} = 27 种逐帧输入。", ["encode_input", "decode_input"], []],
+    "envs/fighting2d/obs_spec.py": ["obs_spec.py", 123, "90 维观测每一维的名称、中文标签和分组，以及 31 个动作的中文名。招式显示名从 naming.json 读入。大脑面板上的标签都来自这里。", ["load_naming", "feature_table", "action_table", "action_zh"], ["envs/fighting2d/constants.py", "envs/fighting2d/moves.py", "wrappers/macros.py"]],
+    "envs/fighting2d/naming.json": ["naming.json", 67, "招式显示名与角色外观的唯一来源：两个必杀技的名字（气功波、冲天拳）、各招式和 4 个搓招宏的中文名、两名角色的阵营色与服装配色。Python 的 obs_spec 和网页（实验台、新手引导、招式表、报告）都读它；改名或换配色只改这一处，再重新导出和构建。内部标识（fireball_L、236L 这类）不随显示名改变。", ["specials", "moves", "macros", "characters"], []],
+    "envs/fighting2d/render.py": ["render.py", 111, "用 PIL 把游戏状态画成 RGB 帧，只在录像和桌面对战时用，训练默认不渲染。", ["render_core"], ["envs/fighting2d/constants.py", "envs/fighting2d/core.py"]],
+    "envs/adapter_base.py": ["adapter_base.py", 172, "真实游戏适配器的公共部分：把“模拟器 + RAM 地址表”包装成和自带游戏相同的接口，所以包装器、智能体、联赛、评估都能直接复用。", ["class ExternalFightingEnv", "class RamView", "to_absolute"], ["envs/fighting2d/constants.py"]],
+    "envs/retro_adapter.py": ["retro_adapter.py", 115, "stable-retro 适配器（Linux / macOS；Windows 只能用 WSL2）。需要用户提供 ROM，游戏配置在 envs/game_specs/。", ["class RetroFightingEnv", "load_spec"], ["envs/adapter_base.py"]],
+    "envs/diambra_adapter.py": ["diambra_adapter.py", 105, "DIAMBRA Arena 适配器，需要 Docker、DIAMBRA 账号和自备 ROM，适合在 Linux 机器上跑。", ["class DiambraFightingEnv"], ["envs/adapter_base.py", "envs/retro_adapter.py"]],
+    "eval/match.py": ["match.py", 60, "对战引擎：任意两个对手规格（网络或脚本）直接在格斗核心上对打 N 局，可多进程。循环赛、利用者评估、敲除实验都用它。", ["play_matches"], ["envs/fighting2d/core.py", "eval/stats.py", "league/pool.py", "wrappers/human.py"]],
+    "eval/stats.py": ["stats.py", 36, "胜率统计：Wilson 置信区间，平局按半胜计，必要时 bootstrap。", ["wilson", "bootstrap_ci", "summarize_outcomes"], []],
+    "eval/record.py": ["record.py", 46, "录对局：gif（小，适合进仓库）或 mp4。", ["record_match"], ["envs/fighting2d/core.py", "envs/fighting2d/render.py", "league/pool.py"]],
+    "common/vec_env.py": ["vec_env.py", 132, "向量化环境：同进程串行或多进程并行，接口一致。训练时 32 个环境同时跑。", ["class SyncVecEnv", "class SubprocVecEnv", "make_vec_env"], []],
+    "common/stamp.py": ["stamp.py", 89, "留痕：每次训练或分析都写 _env_stamp.json（参数、种子、版本、git 提交），以及 jsonl 日志和 result.json。", ["env_stamp", "write_stamp", "class JsonlLogger", "write_json"], []],
+    "scripts/jobqueue.py": ["jobqueue.py", 76, "极简本地作业队列：P 个作业并行，结果文件已存在就跳过，中断后可以接着跑。", ["class Job", "run_queue"], []],
+    "arena/__main__.py": ["arena/__main__.py", 117, "一条命令启动实验台：导出模型 → 生成页面 → 本地 HTTP 服务 → 打开浏览器。服务不残留：页面「退出」调用 /shutdown 立即退出；页面每 5 秒发心跳，超过 30 秒收不到（标签页已关闭）自动退出。导出的是本地 runs/ 里训练出的模型；只想玩直接双击 play/index.html（纯静态，没有后台进程）。", ["main"], ["arena/build.py", "arena/export.py"]],
+    "arena/export.py": ["export.py", 212, "把训练好的 actor、critic 真实权重、观测特征表、动作名和实验结果导出成浏览器能加载的 JS 文件（每个模型一个，按需加载，file:// 也能用），可选半精度减小体积。spec.js 里带着 naming.json 的招式名与配色。", ["export_models", "export_spec", "export_report", "net_spec"], ["envs/fighting2d/constants.py", "envs/fighting2d/moves.py", "envs/fighting2d/obs_spec.py"]],
+    "arena/build.py": ["build.py", 199, "生成可运行页面。本地版：arena/web/index.html。--release：生成免安装版 play/（完整 HTML、精选模型 float16、本地字体与录像，双击 index.html 即可，也能直接放 GitHub Pages）和 release/*.zip（同一份内容打包，挂到 GitHub Release）。版本号与署名读 credits.json。", ["build_local", "build_dist", "build_release", "split_page"], ["arena/export.py", "arena/fonts.py"]],
+    "arena/fonts.py": ["fonts.py", 108, "把网页字体打包到本地：下载开源字体（SIL OFL 1.1）→ 按页面实际用到的字符取子集 → 以 data URI 写进 assets/fonts.js，离线、file:// 双击都能用。第一次构建需要联网，之后用缓存；没有网络也没有缓存时页面退回系统字体。", ["FONTS", "page_chars", "subset", "build"], []],
+    "arena/capture.py": ["capture.py", 217, "用本机已安装的 Chrome/Edge（无头模式 + DevTools 协议）驱动实验台：截图、逐帧录像、无头冒烟测试。不安装任何浏览器。", ["class Browser", "find_browser", "page_url"], ["arena/build.py"]],
+    "arena/browser_check.py": ["browser_check.py", 241, "免安装版的跨浏览器验收：用本机 Chrome/Edge 以 file:// 打开 play/index.html，在 1920×1080 与 1366×768 下逐项检查：操作说明浮层、本地字体、页脚署名、左右两栏、「全部」模式堆叠与点击切换单个、大屏模式、结构式数字与模型一致、敲除、我来打、键盘、手搓气功波与新手键、练习任务、退出按钮（主循环停止、音效关闭、结束页）。结果写到 release/browser_check.json。", ["class Check", "run_one", "main"], ["arena/capture.py"]],
+    "credits.json": ["credits.json", 11, "署名与系列信息的唯一配置：作者、学校（英文 / 韩文）、系列名、案例号、GitHub 用户名与仓库名、年份、版本号。值为空时，页面和文档里保留 &#123;&#123;KEY&#125;&#125; 形式的占位。", ["AUTHOR_EN", "UNIVERSITY_EN", "REPO_NAME", "VERSION"], []],
+    "tools/fill_credits.py": ["fill_credits.py", null, "发布前填署名用：读 credits.json，把文档里 &#123;&#123;KEY&#125;&#125; 形式的占位替换成实际值，并更新 play/ 页脚的署名。", ["main"], []],
+    "arena/web/assets/main.js": ["main.js", 615, "实验台主程序：三种玩法（观战 / 我来打 / 练习，只靠顶部标签切换）、三局两胜与开场/KO 演出、固定 60 帧时间步、人类/AI/木桩玩家、对手预设（新手 / 普通 / 困难 / 无限制）、模型按需加载；右栏大脑按 N 个智能体管理（「P1 大脑 | P2 大脑 | 全部」切换，全部模式 N ≤ 2 上下堆叠、N = 3–4 宽度够时 2×2）、大屏模式（左右 45:55 → 35:65）、播放控制、神经元敲除、新手引导接入；「退出」停止主循环/定时器/心跳、关闭音效与手柄监听、释放模型并显示结束页；测试钩子 window.ARENA_TEST。", ["PRESETS", "setMode", "newMatch", "ARENA_TEST"], ["arena/web/assets/fight.js", "arena/web/assets/brain.js", "arena/web/assets/brainview.js", "arena/web/assets/render.js", "arena/web/assets/input.js", "arena/web/assets/coach.js", "arena/web/assets/audio.js", "arena/web/assets/report.js"]],
+    "arena/web/assets/fight.js": ["fight.js", 553, "core.py 的逐行 JS 移植，加上策略推理。与 Python 版逐帧一致。", ["Core", "Policy", "MACROS", "encodeInput"], []],
+    "arena/web/assets/brain.js": ["brain.js", 218, "浏览器里的神经网络：前向、critic 价值、对 log π 的输入梯度、积分梯度、神经元 mask。BrainPlayer 复刻训练时的整条管线（延迟、跳帧、宏、APM、动作历史）。数学与 agents/ppo.py 对拍。", ["Net.forward", "Net.value", "Net.grads", "Net.explain", "BrainPlayer"], ["arena/web/assets/fight.js"]],
+    "arena/web/assets/brainview.js": ["brainview.js", 532, "大脑面板（右栏）。顶部结构式「输入 214 → 隐藏 W → … → 输出 31 个动作 + 1 个局势评估 · 参数」，数字从实际模型读取；每层上方写个数与显示方式。单个模式：输入按语义分组显示真实数值和归因，隐藏层只展开对当前决策贡献最大的若干个神经元（小圆点）并附全层方阵，只画贡献最大的连线，输出 31 个动作的概率和局势仪表。紧凑模式（全部）：输入按组聚合、隐藏层全层热力方阵、输出列概率最高的几个动作，边框用阵营色，点击切到单个模式。", ["BrainView"], ["arena/web/assets/brain.js"]],
+    "arena/web/assets/render.js": ["render.js", 418, "游戏画面：程序化绘制的角色动画、命中火花、震屏、血条和回合 HUD、开场与 KO 演出、“AI 看到的画面”幽灵叠加。角色配色来自 naming.json。只读状态，不改状态。", ["drawFrame"], ["arena/web/assets/fight.js"]],
+    "arena/web/assets/input.js": ["input.js", 101, "人类输入：键盘（WASD/方向键 + J/K）与手柄，换算成和 Python 版相同的“相对朝向”逐帧输入。新手模式（默认开）：U = 气功波、I = 冲天拳，按住 Shift 放重版本（手柄 LB / RB 同理）；做法是把 AI 动作空间里同一个 4 帧搓招宏逐帧按出来，不是直接生成招式，所以手速照样计算。退出时 unbind() 断开键盘与手柄监听。", ["Input.code", "Input.macro", "EASY"], ["arena/web/assets/fight.js"]],
+    "arena/web/assets/coach.js": ["coach.js", 298, "新手引导：操作说明浮层（键盘示意图）、招式表（悬停时按顺序点亮要按的方向键）、输入历史栏与搓招成败提示（没出来时指出差在哪一步）、练习模式（木桩对手 + 任务清单）。只读游戏状态，不改规则（练习模式的回血除外）。招式名来自 naming.json。", ["MOVELIST", "Coach.diagnose", "Coach.startPractice", "Coach.dummyCode"], ["arena/web/assets/fight.js"]],
+    "arena/web/assets/audio.js": ["audio.js", 68, "WebAudio 合成音效，不用任何外部音频素材；浏览器要求用户交互后才出声，第一次点击或按键时恢复。退出时 close() 关闭 AudioContext。", ["Sfx"], []],
+    "arena/web/assets/report.js": ["report.js", 460, "实验报告页：读 arena/export.py 从 results/*.json 导出的数据，画全部交互图表（手写 inline SVG，带悬停提示）并填数字。", ["ARENA_REPORT_RENDER"], ["arena/web/assets/fight.js"]]
+  };
+  var SPECIAL = [
+    { from: "experiments/scaling/plan.py", to: "scripts/train.py", label: "按清单启动" },
+    { from: "arena/export.py", to: "arena/web/assets/brain.js", label: "导出真实权重" },
+    { from: "arena/export.py", to: "arena/web/assets/brainview.js", label: "导出特征名" },
+    { from: "arena/export.py", to: "arena/web/assets/report.js", label: "导出实验结果" },
+    { from: "arena/export.py", to: "arena/web/assets/coach.js", label: "导出招式名" },
+    { from: "envs/fighting2d/naming.json", to: "envs/fighting2d/obs_spec.py", label: "招式名与配色" },
+    { from: "credits.json", to: "arena/build.py", label: "版本与署名" },
+    { from: "credits.json", to: "tools/fill_credits.py", label: "读取署名" },
+    { from: "arena/build.py", to: "arena/web/assets/main.js", label: "打包成 play/" },
+    { from: "envs/fighting2d/core.py", to: "arena/web/assets/fight.js", label: "逐帧对拍" },
+    { from: "agents/ppo.py", to: "arena/web/assets/brain.js", label: "数学对拍" },
+    { from: "agents/policy_opponent.py", to: "arena/web/assets/brain.js", label: "对局对拍" },
+    { from: "wrappers/macros.py", to: "arena/web/assets/input.js", label: "同一组搓招宏" }
+  ];
+  var TESTS = {
+    "envs/fighting2d/core.py": ["test_core", "test_js_parity", "test_obs_spec"],
+    "wrappers/human.py": ["test_wrappers"], "wrappers/frame_skip.py": ["test_wrappers"], "wrappers/macros.py": ["test_wrappers"],
+    "envs/registry.py": ["test_wrappers"],
+    "agents/policy_opponent.py": ["test_policy_opponent", "test_arena_brain"],
+    "agents/numpy_policy.py": ["test_arena_brain"],
+    "league/elo.py": ["test_league"], "league/pool.py": ["test_league"], "eval/match.py": ["test_league"], "eval/stats.py": ["test_league"],
+    "agents/scripted.py": ["test_league"],
+    "envs/fighting2d/obs_spec.py": ["test_obs_spec"],
+    "arena/web/assets/fight.js": ["test_js_parity"],
+    "arena/web/assets/brain.js": ["test_arena_brain"], "agents/ppo.py": ["test_arena_brain"],
+    "arena/web/assets/main.js": ["test_arena_browser", "browser_check"], "arena/web/assets/brainview.js": ["test_arena_browser"],
+    "arena/web/assets/input.js": ["browser_check"], "arena/web/assets/coach.js": ["browser_check"],
+    "arena/capture.py": ["test_arena_browser"],
+    "envs/adapter_base.py": ["test_adapters"], "envs/retro_adapter.py": ["test_adapters"], "envs/diambra_adapter.py": ["test_adapters"],
+    "scripts/play_vs_ai.py": ["test_play_vs_ai"]
+  };
+  var USERS = {};
+  Object.keys(M).forEach(function (id) { USERS[id] = []; });
+  Object.keys(M).forEach(function (id) { M[id][4].forEach(function (d) { if (USERS[d]) USERS[d].push(id); }); });
+  function kindOf(id) { return /\.js$/.test(id) ? "js" : /\.json$/.test(id) ? "json" : "py"; }
+  var KIND_NAME = { js: "浏览器 JS", json: "JSON 配置", py: "Python" };
+
+  var NS = "http://www.w3.org/2000/svg", W = 1180, ROW_H = 100, TOP = 34, BOX_H = 56, GAP = 14, MAXW = 150;
+  var svg = document.getElementById("mapsvg");
+  var H = TOP + ROWS.length * ROW_H + 4;
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  function el(name, attrs, parent) {
+    var e = document.createElementNS(NS, name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  var defs = el("defs", {}, svg);
+  [["mk-dep", "var(--amber)"], ["mk-user", "var(--blue)"], ["mk-sp", "var(--red)"]].forEach(function (m) {
+    var mk = el("marker", { id: m[0], viewBox: "0 0 10 10", refX: "8", refY: "5", markerWidth: "7", markerHeight: "7", orient: "auto-start-reverse" }, defs);
+    el("path", { d: "M0,0 L10,5 L0,10 z", fill: m[1] }, mk);
+  });
+  var bands = el("g", {}, svg), edgeLayer = el("g", {}, svg), nodeLayer = el("g", {}, svg);
+  var POS = {};
+  ROWS.forEach(function (row, r) {
+    var y0 = TOP + r * ROW_H;
+    el("rect", { x: 4, y: y0 - 4, width: W - 8, height: ROW_H - 6, rx: 8, fill: r % 2 ? "transparent" : "var(--band)" }, bands);
+    var t = el("text", { x: 16, y: y0 + 12, "font-size": "13", fill: "var(--muted)", "font-weight": "500" }, bands);
+    t.textContent = row.label + " · " + row.ids.length;
+    var n = row.ids.length, bw = Math.min(MAXW, (W - 40 - (n - 1) * GAP) / n);
+    var total = n * bw + (n - 1) * GAP, x0 = (W - total) / 2;
+    row.ids.forEach(function (id, i) {
+      var x = x0 + i * (bw + GAP), y = y0 + 22, m = M[id], kind = kindOf(id), js = kind === "js";
+      POS[id] = { x: x, y: y, w: bw, h: BOX_H, cx: x + bw / 2 };
+      var g = el("g", { class: "node", tabindex: "0", role: "button", "data-id": id, "aria-label": id + (m[1] != null ? "，" + m[1] + " 行" : "") }, nodeLayer);
+      var box = el("rect", { class: "box", x: x, y: y, width: bw, height: BOX_H, rx: 7, fill: js ? "var(--red-fill)" : "var(--surface)", stroke: js ? "var(--red)" : "var(--line)", "stroke-width": "1.2" }, g);
+      if (kind === "json") box.setAttribute("stroke-dasharray", "5 4");
+      var a = el("text", { x: x + bw / 2, y: y + 24, "text-anchor": "middle", "font-size": "14", "font-family": "JetBrains Mono, monospace", "font-weight": "600", fill: "var(--ink)" }, g);
+      a.textContent = m[0].replace(/\.py$/, "");
+      var b = el("text", { x: x + bw / 2, y: y + 44, "text-anchor": "middle", "font-size": "12", fill: "var(--muted)" }, g);
+      b.textContent = (m[1] != null ? m[1] + " 行" : "发布工具") + (js ? " · JS" : kind === "json" ? " · 配置" : "");
+      g.addEventListener("click", function () { select(id); });
+      g.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(id); } });
+    });
+  });
+
+  function curve(a, b, slot, n) {
+    var off = n > 1 ? (slot - (n - 1) / 2) * Math.min(12, (a.w - 20) / n) : 0;
+    var x1 = a.cx + off, x2 = b.cx, y1, y2, d;
+    if (Math.abs(a.y - b.y) < 1) {
+      y1 = a.y; y2 = b.y; var lift = 26 + Math.min(40, Math.abs(x2 - x1) / 8);
+      d = "M" + x1 + "," + y1 + " C" + x1 + "," + (y1 - lift) + " " + x2 + "," + (y2 - lift) + " " + x2 + "," + (y2 - 2);
+    } else if (b.y > a.y) {
+      y1 = a.y + a.h; y2 = b.y - 2; var my = (y1 + y2) / 2;
+      d = "M" + x1 + "," + y1 + " C" + x1 + "," + my + " " + x2 + "," + my + " " + x2 + "," + y2;
+    } else {
+      y1 = a.y; y2 = b.y + b.h + 2; var my2 = (y1 + y2) / 2;
+      d = "M" + x1 + "," + y1 + " C" + x1 + "," + my2 + " " + x2 + "," + my2 + " " + x2 + "," + y2;
+    }
+    return d;
+  }
+  function draw(id) {
+    while (edgeLayer.firstChild) edgeLayer.removeChild(edgeLayer.firstChild);
+    var deps = M[id][4], users = USERS[id];
+    deps.forEach(function (d, i) { if (POS[d]) el("path", { d: curve(POS[id], POS[d], i, deps.length), fill: "none", stroke: "var(--amber)", "stroke-width": "2", "marker-end": "url(#mk-dep)", opacity: ".9" }, edgeLayer); });
+    users.forEach(function (u, i) { if (POS[u]) el("path", { d: curve(POS[u], POS[id], 0, 1), fill: "none", stroke: "var(--blue)", "stroke-width": "2", "marker-end": "url(#mk-user)", opacity: ".85" }, edgeLayer); });
+    SPECIAL.forEach(function (s) {
+      if (s.from !== id && s.to !== id) return;
+      var a = POS[s.from], b = POS[s.to], p = el("path", { d: curve(a, b, 0, 1), fill: "none", stroke: "var(--red)", "stroke-width": "2", "stroke-dasharray": "6 5", "marker-end": "url(#mk-sp)" }, edgeLayer);
+      var mx = (a.cx + b.cx) / 2, my = (a.y + a.h + b.y) / 2;
+      if (Math.abs(a.y - b.y) < 1) my = a.y - 38;
+      var lw = s.label.length * 12 + 14;
+      el("rect", { x: mx - lw / 2, y: my - 10, width: lw, height: 20, rx: 10, fill: "var(--surface)", stroke: "var(--red)" }, edgeLayer);
+      var t = el("text", { x: mx, y: my + 4, "text-anchor": "middle", "font-size": "12", fill: "var(--red)" }, edgeLayer);
+      t.textContent = s.label;
+    });
+    Array.prototype.forEach.call(nodeLayer.children, function (g) {
+      var gid = g.getAttribute("data-id"), r = g.firstChild, js = /\.js$/.test(gid);
+      var on = gid === id, isDep = deps.indexOf(gid) >= 0, isUser = users.indexOf(gid) >= 0;
+      var sp = SPECIAL.some(function (s) { return (s.from === id && s.to === gid) || (s.to === id && s.from === gid); });
+      r.setAttribute("stroke", on ? "var(--amber)" : isDep ? "var(--amber)" : isUser ? "var(--blue)" : sp ? "var(--red)" : js ? "var(--red)" : "var(--line)");
+      r.setAttribute("stroke-width", on ? "3" : (isDep || isUser || sp) ? "2" : "1.2");
+      r.setAttribute("fill", on ? "var(--amber-fill)" : js ? "var(--red-fill)" : "var(--surface)");
+      g.setAttribute("opacity", on || isDep || isUser || sp ? "1" : ".55");
+      g.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+  var panel = document.getElementById("panel");
+  function chipList(ids, cls) {
+    if (!ids.length) return '<span style="color:var(--muted);font-size:13px">无</span>';
+    return ids.map(function (d) { return '<button class="chip ' + cls + '" data-go="' + d + '">' + (M[d] ? M[d][0] : d) + "</button>"; }).join("");
+  }
+  function layerOf(id) { for (var i = 0; i < ROWS.length; i++) if (ROWS[i].ids.indexOf(id) >= 0) return ROWS[i].label; return ""; }
+  function render(id) {
+    var m = M[id], kind = kindOf(id), js = kind === "js";
+    var sp = SPECIAL.filter(function (s) { return s.from === id || s.to === id; }).map(function (s) {
+      var other = s.from === id ? s.to : s.from;
+      return '<button class="chip" style="border-color:var(--red)" data-go="' + other + '">' + s.label + " · " + M[other][0] + "</button>";
+    }).join("");
+    panel.innerHTML =
+      '<div class="path">' + id + "</div>" +
+      '<div class="badges"><span class="badge">' + layerOf(id) + "</span>" + (m[1] != null ? '<span class="badge">' + m[1] + " 行</span>" : "") + '<span class="badge' + (js ? " js" : "") + '">' + KIND_NAME[kind] + "</span></div>" +
+      "<p>" + m[2] + "</p>" +
+      "<h3>" + (kind === "json" ? "主要字段" : "关键定义") + "</h3><div class='chips'>" + m[3].map(function (d) { return '<span class="chip static">' + d + "</span>"; }).join("") + "</div>" +
+      "<h3>它依赖（橙色）</h3><div class='chips'>" + chipList(m[4], "dep") + "</div>" +
+      "<h3>依赖它的（蓝色）</h3><div class='chips'>" + chipList(USERS[id], "user") + "</div>" +
+      (sp ? "<h3>数据与对拍（红色虚线）</h3><div class='chips'>" + sp + "</div>" : "") +
+      "<h3>守护它的测试</h3><div class='chips'>" + ((TESTS[id] || []).map(function (t) { return '<span class="chip test">' + t + ".py</span>"; }).join("") || '<span style="color:var(--muted);font-size:13px">没有专门的测试</span>') + "</div>";
+    Array.prototype.forEach.call(panel.querySelectorAll("[data-go]"), function (b) { b.addEventListener("click", function () { select(b.getAttribute("data-go")); }); });
+  }
+  var current = null;
+  function select(id) { if (!M[id]) return; current = id; draw(id); render(id); try { localStorage.setItem("codemap.sel", id); } catch (e) {} }
+  var start = "scripts/train.py";
+  try { var s = localStorage.getItem("codemap.sel"); if (s && M[s]) start = s; } catch (e) {}
+  select(start);
+})();
+</script>
+</body>
+</html>

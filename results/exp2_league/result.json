@@ -1,0 +1,74 @@
+{
+  "elo_final": 3326.5337856404826,
+  "elo_final_ci95": [
+    3123.1413640401024,
+    3673.048572127964
+  ],
+  "elo_first_snapshot": 869.9291204774454,
+  "elo_scripted": {
+    "random": 0.0,
+    "greedy": 275.44356925353236,
+    "counter": 478.5751136906006,
+    "masher": 407.40644111311644
+  },
+  "n_snapshots": 20,
+  "max_elo_snapshot": "final",
+  "max_elo": 3326.5337856404826,
+  "final_score_vs_scripted": {
+    "random": 1.0,
+    "greedy": 1.0,
+    "counter": 1.0,
+    "masher": 1.0
+  },
+  "intransitive_triples_(>0.55)": 0,
+  "n_triples": 1140,
+  "apm_final": 1103.9684618684826,
+  "league_final_vs_exp1_cpu_trained": {
+    "seed0": {
+      "score": 1.0,
+      "ci95": [
+        0.9630051925239981,
+        0.9999999999999999
+      ],
+      "ko_rate": 1.0
+    },
+    "seed1": {
+      "score": 0.98,
+      "ci95": [
+        0.9299868370580063,
+        0.9944981477650318
+      ],
+      "ko_rate": 1.0
+    },
+    "seed2": {
+      "score": 0.87,
+      "ci95": [
+        0.7901947810519012,
+        0.9224290614158575
+      ],
+      "ko_rate": 1.0
+    }
+  },
+  "caveat": "胜率接近 0/1 时 BT-Elo 差值被 L2 先验约束、数值不稳定；排序可信，绝对分差不要过度解读",
+  "style_final_vs_counter": {
+    "score": 0.975,
+    "apm": 944.3553715056723,
+    "ko_rate": 1.0,
+    "per_round": {
+      "damage": 1044.75,
+      "hits": 9.03,
+      "blocks": 0.0,
+      "throws": 0.0,
+      "max_combo": 0.03,
+      "move_fireball_H": 1.0,
+      "move_dp_H": 8.72,
+      "move_j_H": 0.05,
+      "move_dp_L": 0.28,
+      "move_st_H": 0.15,
+      "move_j_L": 0.05,
+      "move_st_L": 0.2,
+      "move_cr_L": 0.03
+    },
+    "games": 40
+  }
+}

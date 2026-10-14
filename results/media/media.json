@@ -1,0 +1,234 @@
+{
+ "human_vs_ai": {
+  "name": "human_vs_ai",
+  "title": "人类 vs AI（按键由脚本模拟）",
+  "desc": "P1 由脚本模拟的键盘输入操作，P2 是人类条件（200ms 反应 + APM≤600）训练的 256×2 网络；右侧实时显示 P2 的大脑。",
+  "models": [
+   "w256_d2_human_s0",
+   "w256_d2_human_s0"
+  ],
+  "gif": "human_vs_ai.gif",
+  "mp4": "human_vs_ai.mp4",
+  "png": "human_vs_ai.png",
+  "seconds": 14,
+  "fps": 20,
+  "errors": [],
+  "final_state": {
+   "frame": 800,
+   "phase": "ko",
+   "round": 1,
+   "wins": [
+    0,
+    1
+   ],
+   "mode": "play",
+   "hp": [
+    0,
+    850
+   ],
+   "ready": true,
+   "players": [
+    "human",
+    "w256_d2_human_s0"
+   ],
+   "decisions": [
+    0,
+    200
+   ],
+   "facing": [
+    -1,
+    1
+   ],
+   "moves": [
+    null,
+    "j_H"
+   ],
+   "states": [
+    12,
+    5
+   ],
+   "x": [
+    364,
+    324
+   ],
+   "proj": [
+    false,
+    false
+   ],
+   "layout": "single",
+   "help": false,
+   "tasks": null,
+   "hist": [
+    {
+     "arrow": "·",
+     "btn": "",
+     "n": 1,
+     "macro": false
+    },
+    {
+     "arrow": "·",
+     "btn": "K",
+     "n": 1,
+     "macro": false
+    },
+    {
+     "arrow": "·",
+     "btn": "",
+     "n": 15,
+     "macro": false
+    },
+    {
+     "arrow": "↗",
+     "btn": "",
+     "n": 9,
+     "macro": false
+    },
+    {
+     "arrow": "·",
+     "btn": "",
+     "n": 24,
+     "macro": false
+    },
+    {
+     "arrow": "→",
+     "btn": "",
+     "n": 2,
+     "macro": false
+    }
+   ],
+   "flash": ""
+  },
+  "gif_mb": 3.09,
+  "mp4_mb": 2.95
+ },
+ "big_vs_small": {
+  "name": "big_vs_small",
+  "title": "大网络 vs 小网络（双脑）",
+  "desc": "P1 = 512×2，P2 = 8×2，都是人类条件、8M 步联赛训练；下方并排显示两颗大脑。",
+  "models": [
+   "w512_d2_human_s0",
+   "w8_d2_human_s0"
+  ],
+  "gif": "big_vs_small.gif",
+  "mp4": "big_vs_small.mp4",
+  "png": "big_vs_small.png",
+  "seconds": 14,
+  "fps": 20,
+  "errors": [],
+  "final_state": {
+   "frame": 840,
+   "phase": "fight",
+   "round": 1,
+   "wins": [
+    0,
+    0
+   ],
+   "mode": "watch",
+   "hp": [
+    450,
+    60
+   ],
+   "ready": true,
+   "players": [
+    "w512_d2_human_s0",
+    "w8_d2_human_s0"
+   ],
+   "decisions": [
+    210,
+    210
+   ],
+   "facing": [
+    -1,
+    1
+   ],
+   "moves": [
+    "st_H",
+    null
+   ],
+   "states": [
+    7,
+    11
+   ],
+   "x": [
+    180.50469279289246,
+    80.77174687385559
+   ],
+   "proj": [
+    false,
+    false
+   ],
+   "layout": "all",
+   "help": false,
+   "tasks": null,
+   "hist": [],
+   "flash": ""
+  },
+  "gif_mb": 2.24,
+  "mp4_mb": 2.21
+ },
+ "knockout": {
+  "name": "knockout",
+  "title": "敲掉神经元前后",
+  "desc": "P1 = 256×2，P2 = 64×2 种子 2（做过敲除实验的模型）。前 8 秒正常，第 8 秒敲掉梯度重要度前 32 的神经元（128 个里的 1/4，红叉）。单局只是演示；统计上按重要度敲 32 个和随机敲 32 个伤害相近（见敲除一节）。",
+  "models": [
+   "w256_d2_human_s0",
+   "w64_d2_human_s2"
+  ],
+  "gif": "knockout.gif",
+  "mp4": "knockout.mp4",
+  "png": "knockout.png",
+  "seconds": 16,
+  "fps": 20,
+  "errors": [],
+  "final_state": {
+   "frame": 909,
+   "phase": "ko",
+   "round": 1,
+   "wins": [
+    1,
+    0
+   ],
+   "mode": "watch",
+   "hp": [
+    800,
+    0
+   ],
+   "ready": true,
+   "players": [
+    "w256_d2_human_s0",
+    "w64_d2_human_s2"
+   ],
+   "decisions": [
+    228,
+    228
+   ],
+   "facing": [
+    1,
+    1
+   ],
+   "moves": [
+    "st_H",
+    null
+   ],
+   "states": [
+    7,
+    12
+   ],
+   "x": [
+    147.61643481254578,
+    205.49532198905945
+   ],
+   "proj": [
+    false,
+    false
+   ],
+   "layout": "single",
+   "help": false,
+   "tasks": null,
+   "hist": [],
+   "flash": ""
+  },
+  "gif_mb": 3.65,
+  "mp4_mb": 3.95
+ }
+}

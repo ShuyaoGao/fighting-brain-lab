@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# 训练产物（大文件 / 可再生）：checkpoint、原始日志、视频
+runs/
+checkpoints/
+*.pt
+*.pth
+*.mp4
+!play/assets/media/*.mp4
+videos/
+logs/
+
+# ROM 绝不进仓库（有版权）
+roms/
+*.md5
+*.bin
+*.smd
+*.sfc
+
+# 构建产物：play/ 要进仓库（双击即玩），release/*.zip 挂 GitHub Release，不进仓库
+release/
+*.zip
+.cache/
+arena/web/assets/gen/
+arena/web/assets/media/
+arena/web/assets/fonts.js
+arena/web/index.html
+arena/dist/
+
+# 本地杂项
+.DS_Store
+*.log

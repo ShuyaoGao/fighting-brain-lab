@@ -1,0 +1,68 @@
+{
+  "_说明": "招式名称与角色外观的唯一来源。Python（obs_spec 的特征名/动作名）与网页（实验台、新手引导、招式表、报告）都从这里读取；改名或换配色只改这个文件，然后运行 python -m arena.export 和 python -m arena.build 重新生成。{fireball}/{dp} 会被替换成 specials 里的名字；内部标识（fireball_L、236L 这类方向记法）不随显示名改变。characters 里 ui 是界面上的阵营色（P1 蓝、P2 红），其余是角色服装。",
+  "specials": {
+    "fireball": "气功波",
+    "dp": "冲天拳"
+  },
+  "moves": {
+    "st_L": "站轻",
+    "st_H": "站重",
+    "cr_L": "蹲轻",
+    "cr_H": "扫腿",
+    "j_L": "跳轻",
+    "j_H": "跳重",
+    "throw": "投",
+    "fireball_L": "轻{fireball}",
+    "fireball_H": "重{fireball}",
+    "dp_L": "轻{dp}",
+    "dp_H": "重{dp}"
+  },
+  "macros": {
+    "236L": "{fireball}（轻）",
+    "236H": "{fireball}（重）",
+    "623L": "{dp}（轻）",
+    "623H": "{dp}（重）"
+  },
+  "characters": [
+    {
+      "label": "P1（蓝）",
+      "ui": "#7fb0ff",
+      "top": "#2f6fd6",
+      "top_dark": "#1c3f86",
+      "bottom": "#2a3550",
+      "bottom_dark": "#1a2236",
+      "accent": "#7ee8fa",
+      "skin": "#e9c4a0",
+      "hair": "#20202a",
+      "sleeves": "long",
+      "headwear": "cap",
+      "light": "#9cc3ff"
+    },
+    {
+      "label": "P2（红）",
+      "ui": "#ff8f87",
+      "top": "#c2334a",
+      "top_dark": "#7a1c2c",
+      "bottom": "#34343e",
+      "bottom_dark": "#22222a",
+      "accent": "#ffcc4d",
+      "skin": "#d9a882",
+      "hair": "#4a2a6a",
+      "sleeves": "none",
+      "headwear": "ponytail",
+      "light": "#ffa39c"
+    }
+  ],
+  "_characters_字段": {
+    "label": "阵营名",
+    "ui": "界面阵营色",
+    "top/top_dark": "上衣（前/后侧）",
+    "bottom/bottom_dark": "裤子（前/后侧）",
+    "accent": "上衣条纹/手套",
+    "skin": "皮肤",
+    "hair": "头发",
+    "sleeves": "long=长袖外套，none=无袖背心",
+    "headwear": "cap=鸭舌帽，ponytail=马尾",
+    "light": "气功波与命中火花的颜色"
+  }
+}

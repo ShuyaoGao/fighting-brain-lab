@@ -1,0 +1,14 @@
+{
+  "backend": "diambra",
+  "title": "拳皇98 UMH（街机，DIAMBRA 官方支持）",
+  "game": "kof98umh",
+  "rom_file": "kof98umh.zip",
+  "rom_sha256": "beb7bdea87137832f5f6d731fd1abd0350c0cd6b6b2d57cab2bedbac24fe8d0a",
+  "attacks": {"L": 1, "H": 3},
+  "attack_names": ["No-Attack", "Weak Punch", "Weak Kick", "Strong Punch", "Strong Kick",
+                   "Weak Punch + Weak Kick", "Strong Punch + Strong Kick",
+                   "Weak Punch + Weak Kick + Strong Punch + Strong Kick", "Weak Punch + Weak Kick + Strong Punch"],
+  "hp_max": 119,
+  "timer_max": 60,
+  "source": "https://docs.diambra.ai/envs/games/kof98umh/"
+}

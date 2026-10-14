@@ -1,0 +1,295 @@
+{
+  "reference": "runs/exp2_league/seed0/snapshots/final.npz",
+  "games": 40,
+  "players": {
+    "d0_s0": {
+      "score_vs_ref": 0.875,
+      "apm": 2937.8896116704163,
+      "ko_rate": 1.0,
+      "per_round": {
+        "damage": 949.0,
+        "hits": 9.35,
+        "blocks": 0.0,
+        "throws": 0.0,
+        "max_combo": 0.03,
+        "move_fireball_H": 3.88,
+        "move_dp_H": 10.85,
+        "move_fireball_L": 0.35,
+        "move_cr_L": 0.05,
+        "move_st_H": 0.05,
+        "move_st_L": 0.03,
+        "move_cr_H": 0.03
+      }
+    },
+    "d0_s1": {
+      "score_vs_ref": 0.025,
+      "apm": 2033.0096509592609,
+      "ko_rate": 1.0,
+      "per_round": {
+        "damage": 329.38,
+        "hits": 4.08,
+        "blocks": 0.0,
+        "throws": 0.0,
+        "max_combo": 0.03,
+        "move_fireball_H": 3.3,
+        "move_fireball_L": 0.47,
+        "move_st_H": 2.88,
+        "move_dp_H": 7.88,
+        "move_st_L": 0.65,
+        "move_dp_L": 0.35,
+        "move_cr_L": 0.28,
+        "move_cr_H": 0.12
+      }
+    },
+    "d0_s2": {
+      "score_vs_ref": 0.875,
+      "apm": 2365.388856077948,
+      "ko_rate": 1.0,
+      "per_round": {
+        "damage": 990.0,
+        "hits": 9.0,
+        "blocks": 0.0,
+        "throws": 0.0,
+        "max_combo": 0.03,
+        "move_fireball_H": 2.62,
+        "move_dp_H": 11.97,
+        "move_dp_L": 0.07
+      }
+    },
+    "d100_s0": {
+      "score_vs_ref": 0.275,
+      "apm": 2125.6362215224212,
+      "ko_rate": 1.0,
+      "per_round": {
+        "damage": 898.25,
+        "hits": 12.35,
+        "blocks": 0.0,
+        "throws": 0.0,
+        "max_combo": 0.03,
+        "move_fireball_H": 6.9,
+        "move_dp_H": 2.48,
+        "move_dp_L": 7.1,
+        "move_st_H": 6.45,
+        "move_fireball_L": 1.75,
+        "move_cr_L": 0.03,
+        "move_st_L": 0.17
+      }
+    },
+    "d100_s1": {
+      "score_vs_ref": 0.0,
+      "apm": 2078.7812172802596,
+      "ko_rate": 1.0,
+      "per_round": {
+        "damage": 337.48,
+        "hits": 5.35,
+        "blocks": 0.0,
+        "throws": 0.03,
+        "max_combo": 0.05,
+        "move_fireball_H": 6.85,
+        "move_fireball_L": 1.57,
+        "move_dp_H": 4.97,
+        "move_st_L": 0.7,
+        "move_st_H": 0.12,
+        "move_dp_L": 0.28,
+        "move_cr_H": 0.05,
+        "move_throw": 0.03,
+        "move_cr_L": 0.07
+      }
+    },
+    "d100_s2": {
+      "score_vs_ref": 0.2,
+      "apm": 2113.3448639235903,
+      "ko_rate": 1.0,
+      "per_round": {
+        "damage": 815.67,
+        "hits": 11.28,
+        "blocks": 0.0,
+        "throws": 0.03,
+        "max_combo": 0.05,
+        "move_fireball_H": 7.55,
+        "move_fireball_L": 0.53,
+        "move_dp_L": 7.72,
+        "move_st_H": 5.7,
+        "move_dp_H": 1.82,
+        "move_cr_L": 0.2,
+        "move_throw": 0.2,
+        "move_st_L": 0.5,
+        "move_cr_H": 0.03
+      }
+    },
+    "d200_s0": {
+      "score_vs_ref": 0.0,
+      "apm": 2015.5866976145528,
+      "ko_rate": 1.0,
+      "per_round": {
+        "damage": 249.75,
+        "hits": 3.65,
+        "blocks": 0.0,
+        "throws": 0.0,
+        "max_combo": 0.03,
+        "move_fireball_H": 5.45,
+        "move_dp_H": 7.28,
+        "move_j_H": 0.1,
+        "move_fireball_L": 0.5,
+        "move_dp_L": 0.03,
+        "move_st_H": 0.15,
+        "move_st_L": 0.05
+      }
+    },
+    "d200_s1": {
+      "score_vs_ref": 0.0,
+      "apm": 1940.2085101418972,
+      "ko_rate": 1.0,
+      "per_round": {
+        "damage": 494.85,
+        "hits": 7.33,
+        "blocks": 0.0,
+        "throws": 0.03,
+        "max_combo": 0.05,
+        "move_fireball_L": 1.68,
+        "move_fireball_H": 5.55,
+        "move_st_L": 0.72,
+        "move_dp_H": 2.62,
+        "move_dp_L": 3.27,
+        "move_st_H": 4.17,
+        "move_cr_H": 0.12,
+        "move_cr_L": 0.07,
+        "move_j_H": 0.03,
+        "move_throw": 0.03
+      }
+    },
+    "d200_s2": {
+      "score_vs_ref": 0.025,
+      "apm": 2182.844917260467,
+      "ko_rate": 1.0,
+      "per_round": {
+        "damage": 284.4,
+        "hits": 4.3,
+        "blocks": 0.0,
+        "throws": 0.0,
+        "max_combo": 0.05,
+        "move_fireball_H": 5.95,
+        "move_fireball_L": 0.12,
+        "move_st_L": 0.07,
+        "move_st_H": 3.45,
+        "move_dp_H": 4.7,
+        "move_dp_L": 0.12,
+        "move_cr_L": 0.07,
+        "move_j_H": 0.05,
+        "move_throw": 0.03
+      }
+    },
+    "human600_s0": {
+      "score_vs_ref": 0.0,
+      "apm": 498.2591639215676,
+      "ko_rate": 1.0,
+      "per_round": {
+        "damage": 72.25,
+        "hits": 0.85,
+        "blocks": 0.03,
+        "throws": 0.28,
+        "max_combo": 0.03,
+        "move_fireball_L": 0.97,
+        "move_st_H": 0.82,
+        "move_cr_H": 7.83,
+        "move_dp_H": 0.03,
+        "move_fireball_H": 0.6,
+        "move_st_L": 0.62,
+        "move_cr_L": 0.05,
+        "move_throw": 0.45,
+        "move_j_H": 0.15,
+        "move_j_L": 0.03
+      }
+    },
+    "human600_s1": {
+      "score_vs_ref": 0.0,
+      "apm": 604.4613168177999,
+      "ko_rate": 1.0,
+      "per_round": {
+        "damage": 173.0,
+        "hits": 2.4,
+        "blocks": 0.03,
+        "throws": 0.0,
+        "max_combo": 0.03,
+        "move_fireball_L": 2.48,
+        "move_st_H": 10.78,
+        "move_j_H": 0.05
+      }
+    },
+    "human600_s2": {
+      "score_vs_ref": 0.0,
+      "apm": 618.4071622453854,
+      "ko_rate": 1.0,
+      "per_round": {
+        "damage": 36.85,
+        "hits": 0.57,
+        "blocks": 0.0,
+        "throws": 0.0,
+        "max_combo": 0.05,
+        "move_fireball_H": 0.97,
+        "move_cr_L": 0.05,
+        "move_st_H": 7.8,
+        "move_j_L": 0.2,
+        "move_j_H": 1.7,
+        "move_st_L": 0.07,
+        "move_cr_H": 0.03
+      }
+    },
+    "human_s0": {
+      "score_vs_ref": 0.0,
+      "apm": 319.3863983474761,
+      "ko_rate": 1.0,
+      "per_round": {
+        "damage": 35.0,
+        "hits": 0.57,
+        "blocks": 0.07,
+        "throws": 0.0,
+        "max_combo": 0.03,
+        "move_fireball_L": 0.88,
+        "move_j_H": 0.47,
+        "move_cr_H": 7.17,
+        "move_j_L": 0.25,
+        "move_cr_L": 0.03,
+        "move_st_L": 0.35,
+        "move_st_H": 0.03
+      }
+    },
+    "human_s1": {
+      "score_vs_ref": 0.0,
+      "apm": 317.4167514354118,
+      "ko_rate": 1.0,
+      "per_round": {
+        "damage": 31.55,
+        "hits": 0.68,
+        "blocks": 0.05,
+        "throws": 0.0,
+        "max_combo": 0.05,
+        "move_fireball_L": 1.0,
+        "move_j_H": 2.95,
+        "move_st_H": 3.08,
+        "move_cr_H": 1.25,
+        "move_st_L": 0.4,
+        "move_cr_L": 0.05,
+        "move_j_L": 0.2
+      }
+    },
+    "human_s2": {
+      "score_vs_ref": 0.0,
+      "apm": 320.2421128446257,
+      "ko_rate": 1.0,
+      "per_round": {
+        "damage": 40.8,
+        "hits": 0.55,
+        "blocks": 0.0,
+        "throws": 0.0,
+        "max_combo": 0.05,
+        "move_fireball_H": 0.93,
+        "move_st_H": 9.25,
+        "move_j_H": 0.3,
+        "move_cr_L": 0.12,
+        "move_j_L": 0.05,
+        "move_st_L": 0.05
+      }
+    }
+  }
+}

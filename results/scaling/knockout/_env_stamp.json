@@ -1,0 +1,36 @@
+{
+  "time": "2026-10-09T13:26:29+0900",
+  "host": "dev-laptop",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.10",
+  "argv": [
+    "experiments/scaling/knockout.py",
+    "--model",
+    "w64_d2_human",
+    "--seed",
+    "2",
+    "--procs",
+    "12"
+  ],
+  "cpu_count": 24,
+  "git_commit": "e5280b52726d01952752adf9122f8161fc289cae",
+  "git_dirty": true,
+  "numpy_version": "2.5.3",
+  "gymnasium_version": "1.4.0",
+  "torch_version": "2.11.0+cu128",
+  "scipy_version": "1.18.1",
+  "matplotlib_version": "3.11.2",
+  "cuda_available": true,
+  "cuda_device": "NVIDIA GeForce RTX 5090 Laptop GPU",
+  "torch_cuda": "12.8",
+  "run": "knockout",
+  "args": {
+    "model": "w64_d2_human",
+    "seed": 2,
+    "games": 80,
+    "confirm_games": 300,
+    "group_games": 200,
+    "top": 8,
+    "procs": 12
+  }
+}

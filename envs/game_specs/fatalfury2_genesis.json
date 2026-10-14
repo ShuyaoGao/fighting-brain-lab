@@ -1,0 +1,20 @@
+{
+  "backend": "retro",
+  "title": "饿狼传说2（Fatal Fury 2，MD/Genesis 移植版）",
+  "game": "FatalFury2-Genesis-v0",
+  "state_1p": "1Player.TerryVsAndy.Italy.Level1",
+  "state_2p": null,
+  "buttons": {"L": ["A"], "H": ["C"]},
+  "ram": {"hp": ["health", "opponent_health"], "x": null, "y": null,
+          "rounds": ["rounds_won", "opponent_rounds_won"], "timer": "time"},
+  "hp_max": 96,
+  "timer_max": 99,
+  "verified": false,
+  "todo": [
+    "按键映射是假设 [未核实]",
+    "hp_max=96 是占位值 [未核实]：reset 后读 info['health'] 确认",
+    "没有 2P 存档：只能打游戏内置 CPU；自博弈需先用 Integration UI 做一个 2P 存档",
+    "没有坐标地址：朝向判断退化为'P1 在左'"
+  ],
+  "source": "https://github.com/Farama-Foundation/stable-retro/tree/main/stable_retro/data/stable/FatalFury2-Genesis-v0"
+}

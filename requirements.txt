@@ -1,0 +1,23 @@
+# 训练与分析所需依赖。只想玩的话不需要任何依赖：双击 play/index.html。
+# torch 请按自己的显卡/系统单独安装：https://pytorch.org/get-started/locally/
+#   例：NVIDIA 新显卡  pip install torch --index-url https://download.pytorch.org/whl/cu128
+#       只用 CPU       pip install torch
+# 作者测试版本：Python 3.12，torch 2.11.0
+numpy>=2.0
+gymnasium>=1.0
+scipy>=1.11
+matplotlib>=3.8
+fonttools>=4.50        # arena/fonts.py：字体子集（只在重新构建 play/ 时需要）
+pillow>=10
+imageio>=2.34
+imageio-ffmpeg>=0.5    # 录像（arena/record.py）
+pytest>=8
+
+# 可选：JS 与 Python 逐帧对拍测试（tests/test_js_parity.py；未安装时自动跳过）
+quickjs>=1.19
+# 可选：用本机 Chrome/Edge 做无头截图、录像和浏览器测试（arena/capture.py）
+websocket-client>=1.7
+
+# 可选：真实游戏适配器（需要 Linux/macOS 或 WSL2；ROM 自备）
+# stable-retro>=1.0      # 只有 Linux/macOS 轮子
+# diambra-arena>=2.2     # 需要 Docker

@@ -1,0 +1,15 @@
+{
+  "backend": "diambra",
+  "title": "侍魂零特别版（Samurai Shodown V Special，街机原版，DIAMBRA 官方支持）",
+  "game": "samsh5sp",
+  "rom_file": "samsh5sp.zip",
+  "rom_sha256": "adf33d8a02f3d900b4aa95e62fb21d9278fb920b179665b12a489bd39a6c103d",
+  "attacks": {"L": 1, "H": 5},
+  "attack_names": ["No-Attack", "Weak Slash", "Medium Slash", "Kick", "Meditation",
+                   "Weak Slash + Medium Slash (Strong Slash)", "Medium Slash + Kick (Surprise Attack)",
+                   "Weak Slash + Kick", "Kick + Meditation", "Weak Slash + Medium Slash + Kick (Rage)",
+                   "Medium Slash + Kick + Meditation"],
+  "hp_max": 125,
+  "timer_max": 60,
+  "source": "https://docs.diambra.ai/envs/games/samsh5sp/"
+}

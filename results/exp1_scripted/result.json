@@ -1,0 +1,163 @@
+{
+  "n_seeds": 3,
+  "eval_episodes_per_point": 100,
+  "by_opponent": {
+    "random": {
+      "initial_score_mean": 0.8866666666666667,
+      "final_score_mean": 1.0,
+      "final_score_per_seed": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "steps_to_0.9_per_seed": [
+        4096.0,
+        65536.0,
+        65536.0
+      ],
+      "final_ci95_per_seed": [
+        [
+          0.9630051925239981,
+          0.9999999999999999
+        ],
+        [
+          0.9630051925239981,
+          0.9999999999999999
+        ],
+        [
+          0.9630051925239981,
+          0.9999999999999999
+        ]
+      ]
+    },
+    "greedy": {
+      "initial_score_mean": 0.49333333333333335,
+      "final_score_mean": 0.9933333333333333,
+      "final_score_per_seed": [
+        0.98,
+        1.0,
+        1.0
+      ],
+      "steps_to_0.9_per_seed": [
+        503808.0,
+        376832.0,
+        376832.0
+      ],
+      "final_ci95_per_seed": [
+        [
+          0.9299868370580063,
+          0.9944981477650318
+        ],
+        [
+          0.9630051925239981,
+          0.9999999999999999
+        ],
+        [
+          0.9630051925239981,
+          0.9999999999999999
+        ]
+      ]
+    },
+    "counter": {
+      "initial_score_mean": 0.48666666666666664,
+      "final_score_mean": 0.9966666666666667,
+      "final_score_per_seed": [
+        1.0,
+        0.99,
+        1.0
+      ],
+      "steps_to_0.9_per_seed": [
+        65536.0,
+        126976.0,
+        126976.0
+      ],
+      "final_ci95_per_seed": [
+        [
+          0.9630051925239981,
+          0.9999999999999999
+        ],
+        [
+          0.9455124752390653,
+          0.9982326134344526
+        ],
+        [
+          0.9630051925239981,
+          0.9999999999999999
+        ]
+      ]
+    }
+  },
+  "steps_per_run": 1998848,
+  "wall_clock_s_per_run": [
+    312.0,
+    676.0,
+    347.1
+  ],
+  "style_vs_counter": {
+    "seed0": {
+      "score": 1.0,
+      "apm": 1356.7419830361923,
+      "ko_rate": 1.0,
+      "per_round": {
+        "damage": 1031.0,
+        "hits": 16.7,
+        "blocks": 0.0,
+        "throws": 0.0,
+        "max_combo": 0.03,
+        "move_fireball_H": 19.95,
+        "move_st_H": 0.3,
+        "move_cr_L": 0.07,
+        "move_dp_L": 0.03,
+        "move_dp_H": 0.03,
+        "move_st_L": 0.05
+      },
+      "games": 40
+    },
+    "seed1": {
+      "score": 1.0,
+      "apm": 1168.030600724446,
+      "ko_rate": 0.6,
+      "per_round": {
+        "damage": 968.75,
+        "hits": 13.75,
+        "blocks": 0.05,
+        "throws": 0.0,
+        "max_combo": 0.03,
+        "move_fireball_L": 29.45,
+        "move_cr_L": 2.08,
+        "move_st_H": 0.7,
+        "move_j_L": 1.05,
+        "move_cr_H": 0.15,
+        "move_st_L": 4.22,
+        "move_j_H": 0.35,
+        "move_dp_L": 0.07,
+        "move_fireball_H": 0.38,
+        "move_dp_H": 0.05
+      },
+      "games": 40
+    },
+    "seed2": {
+      "score": 1.0,
+      "apm": 1145.7000690153263,
+      "ko_rate": 0.625,
+      "per_round": {
+        "damage": 950.85,
+        "hits": 13.6,
+        "blocks": 0.1,
+        "throws": 0.0,
+        "max_combo": 0.05,
+        "move_fireball_L": 29.3,
+        "move_cr_L": 0.57,
+        "move_j_H": 0.4,
+        "move_j_L": 0.93,
+        "move_dp_L": 0.2,
+        "move_st_H": 0.55,
+        "move_st_L": 0.82,
+        "move_fireball_H": 0.07,
+        "move_cr_H": 0.17,
+        "move_dp_H": 0.03
+      },
+      "games": 40
+    }
+  }
+}

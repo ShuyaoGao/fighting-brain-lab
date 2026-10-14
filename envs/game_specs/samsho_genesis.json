@@ -1,0 +1,18 @@
+{
+  "backend": "retro",
+  "title": "侍魂（Samurai Shodown，MD/Genesis 移植版，1 代）",
+  "game": "SamuraiShodown-Genesis-v0",
+  "state_1p": null,
+  "state_2p": "Level1.HaohmaruVsWanFu.2P",
+  "buttons": {"L": ["A"], "H": ["C"]},
+  "ram": {"hp": ["health", "enemy_health"], "x": null, "y": null, "rounds": null, "timer": null},
+  "hp_max": 128,
+  "verified": false,
+  "todo": [
+    "按键映射 L=A、H=C 是假设，[未核实]，需在模拟器里确认轻斩/重斩分别对应哪个键",
+    "hp_max=128 是占位值 [未核实]：先 reset 后打印 info['health'] 的满血值再改",
+    "data.json 里没有坐标 x/y：朝向判断退化为'P1 在左'，跳过对手身后会出错；需用 Integration UI 找坐标地址",
+    "state_1p 用 metadata.json 的默认存档（null 表示不覆盖）"
+  ],
+  "source": "https://github.com/Farama-Foundation/stable-retro/tree/main/stable_retro/data/stable/SamuraiShodown-Genesis-v0"
+}

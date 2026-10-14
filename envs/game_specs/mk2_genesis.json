@@ -1,0 +1,17 @@
+{
+  "backend": "retro",
+  "title": "真人快打2（Mortal Kombat II，MD/Genesis 移植版）—— RAM 变量最全，适合先跑通整条流水线",
+  "game": "MortalKombatII-Genesis-v0",
+  "state_1p": null,
+  "state_2p": "Level1.LiuKangVsJax.2P",
+  "buttons": {"L": ["A"], "H": ["C"]},
+  "ram": {"hp": ["health", "enemy_health"], "x": ["x_position", "enemy_x_position"],
+          "y": ["y_position", "enemy_y_position"], "rounds": ["rounds_won", "enemy_rounds_won"], "timer": null},
+  "hp_max": 120,
+  "verified": false,
+  "todo": [
+    "按键映射是假设 [未核实]（MK 用 HP/LP/HK/LK/BLOCK，防御是独立键，不是按后）",
+    "hp_max=120 是占位值 [未核实]"
+  ],
+  "source": "https://github.com/Farama-Foundation/stable-retro/tree/main/stable_retro/data/stable/MortalKombatII-Genesis-v0"
+}

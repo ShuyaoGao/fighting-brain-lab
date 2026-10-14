@@ -1,0 +1,29 @@
+Documentation and teaching materials license
+============================================
+
+Copyright (c) 2026 Shuyao Gao
+
+Unless otherwise noted, the documentation and teaching materials in this
+repository are licensed under the Creative Commons Attribution 4.0
+International License (CC BY 4.0).
+
+  Summary: https://creativecommons.org/licenses/by/4.0/
+  Full legal code: https://creativecommons.org/licenses/by/4.0/legalcode
+
+"Documentation and teaching materials" means:
+  - the prose of README.md;
+  - everything under docs/ (including docs/code_map.html);
+  - the text, charts and figures shown by the web demo (play/ and arena/web/),
+    including the tutorial overlay and the experiment report page;
+  - figures, screenshots, GIFs and videos under results/ and play/assets/media/.
+
+Source code (Python, JavaScript, HTML/CSS templates and build scripts) is
+licensed separately under the MIT License, see LICENSE.
+
+Fonts bundled in play/assets/fonts.js are third-party works under the SIL
+Open Font License 1.1 and are NOT covered by this file; see THIRD_PARTY.md
+and play/assets/fonts/.
+
+Suggested attribution:
+  "Fighting Brain Lab" by Shuyao Gao, CC BY 4.0,
+  https://github.com/ShuyaoGao/fighting-brain-lab

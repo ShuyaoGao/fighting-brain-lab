@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software or its teaching materials, please cite it as below."
+title: "格斗大脑实验台 / Fighting Brain Lab: a browser-based teaching demo of reinforcement learning in a 2D fighting game"
+abstract: "A small 60-fps 2D arcade fighting game with PPO self-play agents that run in the browser, a live visualisation of each agent's neural network, and reproducible experiments on network scaling, human-like reaction-delay and action-rate constraints, exploitability and neuron knockout. Part of the AI 教学演示案例 / AI Teaching Demos series of teaching demos."
+type: software
+authors:
+  - family-names: "Gao"
+    given-names: "Shuyao"
+    affiliation: "aSSIST University (Seoul School of Integrated Sciences and Technologies)"
+version: "1.0"
+license: MIT
+repository-code: "https://github.com/ShuyaoGao/fighting-brain-lab"
+url: "https://ShuyaoGao.github.io/fighting-brain-lab/play/"
+keywords:
+  - reinforcement learning
+  - self-play
+  - PPO
+  - fighting game
+  - interpretability
+  - teaching demo

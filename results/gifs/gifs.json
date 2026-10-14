@@ -1,0 +1,86 @@
+{
+  "exp1_agent_vs_counter.gif": {
+    "path": "results/gifs/exp1_agent_vs_counter.gif",
+    "winner": "P1",
+    "a_side": 0,
+    "a_won": true,
+    "frames": 1058,
+    "hp": [
+      1000,
+      0
+    ],
+    "end_reason": "ko",
+    "a": "runs/exp1_scripted/seed0/snapshots/final.npz",
+    "b": "counter"
+  },
+  "league_final_vs_greedy.gif": {
+    "path": "results/gifs/league_final_vs_greedy.gif",
+    "winner": "P1",
+    "a_side": 0,
+    "a_won": true,
+    "frames": 496,
+    "hp": [
+      1000,
+      0
+    ],
+    "end_reason": "ko",
+    "a": "runs/exp2_league/seed0/snapshots/final.npz",
+    "b": "greedy"
+  },
+  "league_final_vs_early.gif": {
+    "path": "results/gifs/league_final_vs_early.gif",
+    "winner": "P1",
+    "a_side": 0,
+    "a_won": true,
+    "frames": 707,
+    "hp": [
+      705,
+      0
+    ],
+    "end_reason": "ko",
+    "a": "runs/exp2_league/seed0/snapshots/final.npz",
+    "b": "runs/exp2_league/seed0/snapshots/snap_001.npz"
+  },
+  "delay200_vs_delay0.gif": {
+    "path": "results/gifs/delay200_vs_delay0.gif",
+    "winner": "P2",
+    "a_side": 0,
+    "a_won": false,
+    "frames": 1800,
+    "hp": [
+      880,
+      1000
+    ],
+    "end_reason": "timeout",
+    "a": "runs/exp3_delay/d200/seed0/snapshots/final.npz",
+    "b": "runs/exp3_delay/d0/seed0/snapshots/final.npz"
+  },
+  "exploiter_vs_league.gif": {
+    "path": "results/gifs/exploiter_vs_league.gif",
+    "winner": "P1",
+    "a_side": 0,
+    "a_won": true,
+    "frames": 678,
+    "hp": [
+      840,
+      0
+    ],
+    "end_reason": "ko",
+    "a": "runs/exp4_exploit/d100_seed1/snapshots/final.npz",
+    "b": "runs/exp3_delay/d100/seed1/snapshots/final.npz"
+  },
+  "apm300_vs_200ms.gif": {
+    "path": "results/gifs/apm300_vs_200ms.gif",
+    "winner": "P2",
+    "a_side": 0,
+    "a_won": false,
+    "frames": 1503,
+    "hp": [
+      0,
+      517
+    ],
+    "end_reason": "ko",
+    "a": "runs/exp5_human/seed0/snapshots/final.npz",
+    "b": "runs/exp3_delay/d200/seed0/snapshots/final.npz"
+  }
+}

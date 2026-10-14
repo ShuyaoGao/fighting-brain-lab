@@ -1,0 +1,17 @@
+{
+  "backend": "retro",
+  "title": "模板：给 FBNeo 街机原版（如侍魂2 samsho2 / 豪血寺一族2 pwrinst2 / 月华剑士2 lastbld2）写新集成",
+  "game": "SamuraiShodown2-Arcade-v0",
+  "state_1p": "Level1.1P",
+  "state_2p": "Level1.2P",
+  "buttons": {"L": ["A"], "H": ["C"]},
+  "ram": {"hp": ["p1_health", "p2_health"], "x": ["p1_x", "p2_x"], "y": ["p1_y", "p2_y"],
+          "rounds": ["p1_rounds", "p2_rounds"], "timer": "timer"},
+  "hp_max": 128,
+  "timer_max": 99,
+  "verified": false,
+  "todo": [
+    "这是模板，不是可用集成：stable-retro 目录里目前没有这些游戏（生态调研见 docs/LANDSCAPE.md）",
+    "需要：①自备 ROM（如 samsho2.zip）并按 rom.sha 导入；②用 Integration UI 或 MAME 调试器 cheat 搜索找到血量/坐标/回合/计时地址，写进 custom_integrations/<游戏>/data.json；③做 1P/2P 存档；④把变量名填到本文件 ram 字段"
+  ]
+}

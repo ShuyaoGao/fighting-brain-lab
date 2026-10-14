@@ -1,0 +1,23 @@
+格斗大脑实验台 v1.0（免安装版）
+==================================
+
+怎么打开
+  双击 index.html（或「开始游戏.html」），用 Chrome / Edge / Firefox / Safari 打开即可。
+  不需要安装 Python，不需要联网；模型、字体、录像都在 assets/ 目录里。
+  如果双击后是用记事本之类打开的：右键 index.html →「打开方式」→ 选一个浏览器。
+
+三种玩法
+  观战：两个神经网络对打，下方实时显示它们的「大脑」。
+  我来打：你操作蓝色 P1。对手分新手 / 普通 / 困难 / 无限制四档。
+  练习：对手是木桩，右侧任务清单逐项打勾。
+  按 H 或右上角「?」随时打开操作说明。
+
+键位
+  A / D 移动  W 跳  S 蹲  按住「后」= 防御   J 轻攻击  K 重攻击
+  新手模式（默认开）：U 气功波  I 冲天拳  按住 Shift 放重版本
+
+署名与许可证
+  Shuyao Gao · aSSIST University (Seoul School of Integrated Sciences and Technologies) · 서울과학종합대학원대학교
+  代码：MIT License；文档、图表与教学素材：CC BY 4.0
+  字体：Noto Sans SC、ZCOOL QingKe HuangYou、Press Start 2P、JetBrains Mono（SIL Open Font License 1.1，见 assets/fonts/）
+  代码由 Claude Code 辅助编写，经作者审阅。
