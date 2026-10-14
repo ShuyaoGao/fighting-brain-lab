@@ -2,7 +2,7 @@
 
 # 格斗大脑实验台：看得见神经网络的街机格斗强化学习
 
-**Shuyao Gao** · aSSIST University (Seoul School of Integrated Sciences and Technologies) · 서울과학종합대학원대학교
+**Shuyao Gao**（gaoshuyao.mk@gmail.com）· aSSIST University (Seoul School of Integrated Sciences and Technologies) · 서울과학종합대학원대학교
 代码 MIT · 文档与教学素材 CC BY 4.0
 
 一台自带的 60 帧 2D 街机格斗小游戏，加上用强化学习（PPO + 自博弈联赛）训练出来的 AI 对手。打开网页就能和 AI 对打，或者看两个 AI 互打；屏幕另一侧实时显示 AI 神经网络的输入、隐藏层激活、动作概率和局势评估，可以换不同大小的网络、点神经元把它「敲掉」。仓库里还有完整的训练框架和一组可复现的实验：网络大小、反应延迟、手速上限、利用者、神经元敲除。适合机器学习、深度学习、强化学习、前端可视化等课程拿来做课堂演示。

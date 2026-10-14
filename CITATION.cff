@@ -6,6 +6,7 @@ type: software
 authors:
   - family-names: "Gao"
     given-names: "Shuyao"
+    email: "gaoshuyao.mk@gmail.com"
     affiliation: "aSSIST University (Seoul School of Integrated Sciences and Technologies)"
 version: "1.0"
 license: MIT

@@ -563,7 +563,7 @@
     var cr = SPEC.credits || {}, el = $("credits"); if (!el) return;
     function v(k) { return cr[k] ? String(cr[k]) : "{{" + k + "}}"; }
     el.innerHTML = "<span>" + v("SERIES_NAME") + " 系列</span>" +
-      "<span>" + v("AUTHOR_EN") + " · " + (cr.UNIVERSITY_LOGO ? '<img class="logo" src="' + cr.UNIVERSITY_LOGO + '" alt="" height="18"> ' : "") +
+      "<span>" + v("AUTHOR_EN") + " · " + v("AUTHOR_EMAIL") + " · " + (cr.UNIVERSITY_LOGO ? '<img class="logo" src="' + cr.UNIVERSITY_LOGO + '" alt="" height="18"> ' : "") +
       (cr.UNIVERSITY_SHORT || v("UNIVERSITY_EN")) + ' · <span lang="ko">' + v("UNIVERSITY_KO") + "</span></span>" +
       "<span>代码 MIT · 文档与教学素材 CC BY 4.0</span><span>代码由 Claude Code 辅助编写，经作者审阅</span>";
   }
