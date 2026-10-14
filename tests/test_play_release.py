@@ -21,3 +21,16 @@ def test_play_release_end_to_end(tmp_path):
     bad = [r["item"] + "：" + r["detail"] for r in rows if not r["pass"]]
     assert not bad, bad
     assert len(rows) >= 20
+
+
+def test_play_release_mobile_preview(tmp_path):
+    """手机预览：390×844、DPR 3、触屏——没有横向溢出、说明浮层按钮可见、游戏在跑、大脑在更新、没有 JS 报错。"""
+    if not PLAY.exists():
+        pytest.skip("先运行 python -m arena.build --release")
+    exe = capture.find_browser()
+    if not exe:
+        pytest.skip("没有 Chrome/Edge")
+    rows = browser_check.run_mobile(exe, PLAY.resolve().as_uri(), 390, 844, 3, tmp_path)
+    bad = [r["item"] + "：" + r["detail"] for r in rows if not r["pass"]]
+    assert not bad, bad
+    assert len(rows) >= 12

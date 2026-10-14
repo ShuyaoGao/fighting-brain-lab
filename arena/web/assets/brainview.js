@@ -94,7 +94,7 @@
   };
   BrainView.prototype.resize = function () {
     var dpr = window.devicePixelRatio || 1, r = this.cv.getBoundingClientRect();
-    this.cssW = Math.max(320, Math.round(r.width)); this.cssH = Math.max(260, Math.round(r.height));
+    this.cssW = Math.max(280, Math.round(r.width)); this.cssH = Math.max(260, Math.round(r.height));
     this.cv.width = this.cssW * dpr; this.cv.height = this.cssH * dpr; this.dpr = dpr;
   };
   BrainView.prototype._recompute = function (force) {
@@ -400,7 +400,93 @@
   };
   /* 紧凑但完整的画法：输入按组聚合、每个隐藏层画全层热力方阵、输出只列概率最高的几个动作 + 局势评估。
    * 边框用该玩家的阵营色；点击切到它的单个模式。 */
+  // 按宽度折行（中文按字符折）
+  function wrapLines(c, text, maxW) {
+    var out = [], cur = "";
+    for (var i = 0; i < text.length; i++) {
+      var t = cur + text[i];
+      if (c.measureText(t).width > maxW && cur) { out.push(cur); cur = text[i]; } else cur = t;
+    }
+    if (cur) out.push(cur);
+    return out;
+  }
+  /* 手机宽度（< 600px）的紧凑画法：自上而下 = 结构式 → 输入（按组聚合）→ 隐藏层全层方阵 → 局势评估 + 概率最高的动作 */
+  BrainView.prototype._drawCompactNarrow = function () {
+    var c = this.c, W = this.cssW, H = this.cssH, P = this.player, ex = this.ex, last = P.last, net = P.net, spec = this.spec, fw = ex.fw;
+    var nObs = spec.obs_dim, nIn = net.actor.layers[0].nIn, feats = spec.features, L = net.widths.length;
+    c.strokeStyle = this.color; c.lineWidth = 3; c.strokeRect(1.5, 1.5, W - 3, H - 3);
+    var parts = this.title.split(" · ");
+    c.fillStyle = this.color; c.font = "bold 13px " + FONT;
+    c.fillText(parts.slice(0, 2).join(" · "), 10, 20, W - 20);
+    c.fillStyle = COL.muted; c.font = "10px " + FONT;
+    var hint = "点击看完整大脑 ▸"; c.fillText(hint, W - c.measureText(hint).width - 10, 20);
+    c.fillStyle = COL.text; c.font = "bold 10.5px " + FONT;
+    var y = 36;
+    wrapLines(c, "结构：" + this.structure() + " · 参数 " + net.nParams.toLocaleString(), W - 20).forEach(function (ln) { c.fillText(ln, 10, y); y += 14; });
+    var nCut = 0; P.masks.forEach(function (m) { for (var i = 0; i < m.length; i++) if (m[i] === 0) nCut++; });
+    if (nCut) { c.fillStyle = COL.cut; c.font = "bold 10px " + FONT; c.fillText("已敲掉 " + nCut + " 个神经元", 10, y); y += 13; }
+    // 输入（按组）
+    var attr = ex.attr, i, k, maxS = 1e-9;
+    var groups = spec.groups.map(function (g) { return {name: g, ks: []}; });
+    feats.forEach(function (f, j) { groups[spec.groups.indexOf(f.group)].ks.push(j); });
+    var hk = []; for (k = nObs; k < nIn; k++) hk.push(k);
+    groups.push({name: "最近 " + P.nHist + " 次动作", ks: hk});
+    groups.forEach(function (g) { var a = 0, v = 0; g.ks.forEach(function (j) { a += attr[j]; v += Math.abs(last.obs[j]); }); g.attr = a; g.act = v / Math.max(1, g.ks.length); maxS = Math.max(maxS, Math.abs(a)); });
+    y += 4; c.fillStyle = COL.text; c.font = "bold 10.5px " + FONT; c.fillText("输入 " + nIn + " 维（按 " + groups.length + " 组聚合）", 10, y);
+    c.fillStyle = COL.muted; c.font = "9px " + FONT;
+    var lw = Math.min(150, W * 0.42), bw = (W - lw - 30) / 2, b1 = 10 + lw, b2 = b1 + bw + 8;
+    c.fillText("活跃度", b1, y); c.fillText("归因", b2, y);
+    y += 6;
+    var rh = 15;
+    groups.forEach(function (g) {
+      var cy = y + rh / 2;
+      c.fillStyle = COL.text; c.font = "10px " + FONT; c.fillText(g.name + "（" + g.ks.length + "）", 10, cy + 3.5, lw - 6);
+      c.fillStyle = COL.faint; c.fillRect(b1, cy - 4, bw, 8);
+      c.fillStyle = "#9fb4ff"; c.fillRect(b1, cy - 4, bw * Math.min(1, g.act * 3), 8);
+      var t = g.attr / maxS, ax = b2 + bw / 2;
+      c.fillStyle = COL.faint; c.fillRect(b2, cy - 4, bw, 8);
+      c.fillStyle = t >= 0 ? COL.pos : COL.neg; c.fillRect(t >= 0 ? ax : ax + t * bw / 2, cy - 4, Math.abs(t) * bw / 2, 8);
+      y += rh;
+    });
+    // 隐藏层：并排全层方阵
+    y += 18;
+    var outH = 100, ah = Math.max(60, H - y - outH - 26), colW = (W - 20) / L;
+    for (var l = 0; l < L; l++) {
+      var wl = net.widths[l], aw = colW - 10, cx0 = 10 + l * colW;
+      c.fillStyle = COL.text; c.font = "bold 10px " + FONT;
+      var t1 = "隐藏层 " + (l + 1) + "：" + wl + " 个"; c.fillText(t1, cx0 + aw / 2 - c.measureText(t1).width / 2, y);
+      var cs = Math.max(2, Math.min(18, Math.floor(Math.sqrt(aw * ah / wl))));
+      while (cs > 2 && Math.ceil(wl / Math.floor(aw / cs)) * cs > ah) cs--;
+      var perRow = Math.max(1, Math.floor(aw / cs)), nRows = Math.ceil(wl / perRow);
+      var gx0 = cx0 + (aw - perRow * cs) / 2, gy0 = y + 6 + (ah - nRows * cs) / 2, h = fw.acts[l], m = P.masks[l];
+      for (var j = 0; j < wl; j++) {
+        c.fillStyle = m[j] === 0 ? "#40202a" : actColor(h[j]);
+        c.fillRect(gx0 + (j % perRow) * cs, gy0 + Math.floor(j / perRow) * cs, cs - (cs > 3 ? 1 : 0), cs - (cs > 3 ? 1 : 0));
+      }
+    }
+    // 输出
+    y += ah + 18;
+    c.fillStyle = COL.text; c.font = "bold 10.5px " + FONT; c.fillText("输出 " + net.nActions + " 个动作 + 1 个局势评估", 10, y);
+    var val = Math.max(-1, Math.min(1, last.value)), vx = 70, vw = W - vx - 54;
+    y += 14; c.fillStyle = COL.muted; c.font = "10px " + FONT; c.fillText("局势评估", 10, y);
+    c.fillStyle = COL.faint; c.fillRect(vx, y - 8, vw, 9);
+    c.fillStyle = val >= 0 ? "#4fd18b" : "#ff6a6a"; var mid = vx + vw / 2; c.fillRect(val >= 0 ? mid : mid + val * vw / 2, y - 8, Math.abs(val) * vw / 2, 9);
+    c.fillStyle = COL.text; c.font = "bold 10.5px " + MONO; c.fillText(fmt(last.value), W - 46, y);
+    var probs = fw.probs, nTop = Math.max(2, Math.min(4, Math.floor((H - y - 8) / 15)));
+    var order = topIdx(Array.prototype.slice.call(probs), nTop, function (v) { return v; });
+    var barX = Math.min(130, W * 0.4), barW = W - barX - 44;
+    order.forEach(function (a) {
+      y += 15; var isC = a === last.action;
+      if (isC) { c.fillStyle = "rgba(255,210,63,0.16)"; c.fillRect(6, y - 11, W - 12, 15); }
+      c.fillStyle = isC ? COL.chosen : COL.text; c.font = (isC ? "bold " : "") + "10px " + FONT;
+      c.fillText((isC ? "▶ " : "") + spec.actions[a], 10, y, barX - 16);
+      c.fillStyle = COL.faint; c.fillRect(barX, y - 8, barW, 8);
+      c.fillStyle = isC ? COL.chosen : "#8fa2e8"; c.fillRect(barX, y - 8, barW * probs[a], 8);
+      c.fillStyle = COL.muted; c.font = "9px " + MONO; c.fillText(Math.round(probs[a] * 100) + "%", barX + barW + 4, y);
+    });
+  };
   BrainView.prototype.drawCompact = function (core, idx) {
+    if (this.cssW < 600) { this._drawCompactNarrow(); return; }
     var c = this.c, W = this.cssW, H = this.cssH, P = this.player, ex = this.ex, last = P.last, net = P.net, spec = this.spec, fw = ex.fw;
     var nObs = spec.obs_dim, nIn = net.actor.layers[0].nIn, feats = spec.features;
     c.strokeStyle = this.color; c.lineWidth = 3; c.strokeRect(1.5, 1.5, W - 3, H - 3);

@@ -126,7 +126,9 @@
     sides = app.layout === "all" ? ai : (ai.indexOf(app.brainSide) >= 0 ? [app.brainSide] : []);
     if (!sides.length) sides = [app.brainSide];
     buildBrainTabs();
-    var compact = app.layout === "all" && sides.length >= 2, stack = $("brain-stack");
+    // 窄屏（手机）：大脑在游戏下方；「全部」即使只有一个 AI 也用紧凑画法，避免完整画法挤在 360px 里
+    var narrow = window.matchMedia ? window.matchMedia("(max-width: 980px)").matches : window.innerWidth <= 980;
+    var compact = app.layout === "all" && (sides.length >= 2 || narrow), stack = $("brain-stack");
     ensureViews(sides.length);
     sides.forEach(function (s, n) {
       var p = app.players[s];
@@ -134,6 +136,7 @@
       views[n].side = s; views[n].mode = compact ? "compact" : "full";
     });
     stack.classList.toggle("all", compact);
+    stack.classList.toggle("single", !compact);
     var wide = stack.clientWidth >= 1100;
     stack.classList.toggle("grid2", compact && sides.length >= 3 && wide);
     stack.classList.toggle("scroll", compact && sides.length >= 3 && !wide);
@@ -316,7 +319,13 @@
     R.resize();
     views.forEach(function (v) { v.resize(); });
   }
-  window.addEventListener("resize", resize);
+  var wasNarrow = null;
+  function onResize() {   // 跨过窄屏断点时重新安排大脑（紧凑 / 完整）
+    var n = window.matchMedia ? window.matchMedia("(max-width: 980px)").matches : window.innerWidth <= 980;
+    if (wasNarrow !== null && n !== wasNarrow) refreshBrains(); else resize();
+    wasNarrow = n;
+  }
+  window.addEventListener("resize", onResize);
 
   // ---------------- 玩法切换 ----------------
   function setMode(mode, cb) {
@@ -531,7 +540,7 @@
     coach.stop();
     input.unbind();
     var closing = sfx.close();
-    window.removeEventListener("resize", resize);
+    window.removeEventListener("resize", onResize);
     window.removeEventListener("hashchange", onHash);
     // 释放模型数据（权重数组）的引用
     app.players.forEach(function (p) { p.net = null; p.bp = null; p.spec = null; });

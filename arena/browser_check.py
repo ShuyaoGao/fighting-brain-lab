@@ -211,6 +211,82 @@ def run_one(exe, url, W, H, shots):
     return c.rows
 
 
+MOBILE_SIZES = ((390, 844, 3), (414, 896, 3), (768, 1024, 2))
+
+
+def mobile_browser(exe, W, H, dpr):
+    """模拟手机：设备尺寸 + DPR + mobile 视口 + 触屏（pointer: coarse）。"""
+    b = capture.Browser(W, H, dpr=dpr, exe=exe)
+    b.call("Emulation.setDeviceMetricsOverride", {"width": W, "height": H, "deviceScaleFactor": dpr, "mobile": True})
+    b.call("Emulation.setTouchEmulationEnabled", {"enabled": True, "maxTouchPoints": 5})
+    return b
+
+
+OVERFLOW_JS = "(function(){return {sw: document.documentElement.scrollWidth, iw: innerWidth};})()"
+
+
+def run_mobile(exe, url, W, H, dpr, shots):
+    """手机预览验收：没有横向滚动、说明浮层按钮完整可见、触屏说明替代键盘图、游戏在跑、大脑在游戏下方并在更新、虚拟按键可用且不挡画面。"""
+    b = mobile_browser(exe, W, H, dpr)
+    c = Check(b)
+    tag = f"手机 {W}×{H}"
+    try:
+        b.call("Page.navigate", {"url": url})
+        c.ok(tag + "：打开页面", wait(b, "window.ARENA_TEST && ARENA_TEST.state().ready"))
+        time.sleep(0.6)
+        o = b.js(OVERFLOW_JS)
+        c.ok(tag + "：说明浮层没有横向溢出", o["sw"] <= o["iw"], json.dumps(o))
+        r = b.js("(function(){var e=document.getElementById('help-go').getBoundingClientRect();return {l:e.left,r:e.right,t:e.top,b:e.bottom,iw:innerWidth,ih:innerHeight};})()")
+        c.ok(tag + "：「知道了，开始」按钮完整可见", r["l"] >= 0 and r["r"] <= r["iw"] and r["t"] >= 0 and r["b"] <= r["ih"], json.dumps(r))
+        touch = b.js("matchMedia('(pointer: coarse)').matches && getComputedStyle(document.querySelector('.help-kbd')).display === 'none'"
+                     " && document.querySelector('.help-touch').offsetHeight > 0")
+        c.ok(tag + "：触屏时键盘示意图换成虚拟按键说明", touch)
+        if W == 390:
+            (shots / f"mobile_{W}x{H}_help.png").write_bytes(b.shot())
+        c.click("#help-go")
+        time.sleep(1.5)
+        st0 = c.st()
+        time.sleep(1.5)
+        st1 = c.st()
+        c.ok(tag + "：默认观战，游戏在跑", st1["mode"] == "watch" and st1["frame"] > st0["frame"] + 30, f"帧 {st0['frame']} → {st1['frame']}")
+        c.ok(tag + "：大脑在更新", min(st1["decisions"]) > min(st0["decisions"]), f"{st0['decisions']} → {st1['decisions']}")
+        br = b.js("ARENA_TEST.brains()")
+        geo = b.js("(function(){var g=document.getElementById('game').getBoundingClientRect(), s=document.getElementById('brain-stack').getBoundingClientRect();"
+                   "return {gw:g.width, gb:g.bottom, st:s.top, iw:innerWidth};})()")
+        c.ok(tag + "：游戏画布按宽度缩放", abs(geo["gw"] - (geo["iw"] - 32)) <= 2, json.dumps(geo))
+        c.ok(tag + "：大脑在游戏下方、「全部」紧凑画法、高度适合手机", geo["st"] >= geo["gb"] and len(br) == 2 and all(x["mode"] == "compact" and 300 <= x["h"] <= 600 for x in br),
+             json.dumps([[x["mode"], x["w"], x["h"]] for x in br]))
+        o = b.js(OVERFLOW_JS)
+        c.ok(tag + "：观战页没有横向滚动", o["sw"] <= o["iw"], json.dumps(o))
+        c.ok(tag + "：观战时不显示虚拟按键", b.js("getComputedStyle(document.getElementById('pad')).display === 'none'"))
+        if W == 390:
+            (shots / f"mobile_{W}x{H}_watch.png").write_bytes(b.shot())
+        c.click("button[data-mode=play]")
+        wait(b, "ARENA_TEST.state().players[0]==='human'")
+        time.sleep(0.4)
+        pad = b.js("(function(){var p=document.getElementById('pad').getBoundingClientRect(), g=document.getElementById('game').getBoundingClientRect();"
+                   "return {disp:getComputedStyle(document.getElementById('pad')).display, l:p.left, r:p.right, t:p.top, gb:g.bottom, iw:innerWidth, n:document.querySelectorAll('#pad button').length};})()")
+        c.ok(tag + "：「我来打」时虚拟按键可用、在画面下方不挡画面", pad["disp"] == "grid" and pad["l"] >= 0 and pad["r"] <= pad["iw"] and pad["t"] >= pad["gb"], json.dumps(pad))
+        b.js("ARENA_TEST.manual(true)"); b.js("ARENA_TEST.seed(4)"); b.js("ARENA_TEST.skipIntro()")
+        x0 = c.st()["x"][0]
+        r2 = b.js("(function(){var e=document.querySelector('[data-pad=right]').getBoundingClientRect();return [e.left+e.width/2,e.top+e.height/2];})()")
+        b.call("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": r2[0], "y": r2[1]}]})
+        c.step(30)
+        b.call("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+        c.step(2)
+        x1 = c.st()["x"][0]
+        c.ok(tag + "：虚拟按键「→」能让 P1 前进", x1 > x0 + 20, f"x {x0:.0f} → {x1:.0f}")
+        o = b.js(OVERFLOW_JS)
+        c.ok(tag + "：我来打页面没有横向滚动", o["sw"] <= o["iw"], json.dumps(o))
+        errs = b.errors()
+        c.ok(tag + "：没有脚本错误", not errs, "; ".join(errs)[:300])
+    except Exception as e:  # noqa: BLE001
+        c.ok(tag + "：流程中断", False, str(e)[:300])
+    finally:
+        b.close()
+    return c.rows
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--page", default=str(ROOT / "play" / "index.html"))
@@ -231,6 +307,12 @@ def main():
             res["results"][f"{name} {W}x{H}"] = rows
             bad = [r for r in rows if not r["pass"]]
             print(f"{name} {W}x{H}: {len(rows) - len(bad)}/{len(rows)} 通过" + ("" if not bad else "；失败：" + "；".join(r["item"] + "（" + r["detail"] + "）" for r in bad)))
+        for W, H, dpr in MOBILE_SIZES:
+            d = shots / name
+            rows = run_mobile(exe, url, W, H, dpr, d)
+            res["results"][f"{name} 手机 {W}x{H}"] = rows
+            bad = [r for r in rows if not r["pass"]]
+            print(f"{name} 手机 {W}x{H}（DPR {dpr}，触屏）: {len(rows) - len(bad)}/{len(rows)} 通过" + ("" if not bad else "；失败：" + "；".join(r["item"] + "（" + r["detail"] + "）" for r in bad)))
     res["results"]["Firefox"] = "未测（本机没有安装 Firefox）"
     res["results"]["Safari"] = "未测：需要在真实 Mac 上确认"
     (out / "browser_check.json").write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")

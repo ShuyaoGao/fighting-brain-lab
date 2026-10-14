@@ -74,6 +74,8 @@
       '<button class="help-x" id="help-close" aria-label="关闭说明">×</button>' +
       '<h2 id="help-title">怎么玩</h2>' +
       '<div class="help-kbd">' + this.keyboardSVG() + "</div>" +
+      '<p class="help-touch">手机 / 平板：打开就是两个 AI 对打，往下滑看它们的大脑。想亲手玩就点顶部「我来打」或「练习」，' +
+      "画面下方会出现虚拟按键：← ↑ ↓ → 移动、跳、蹲（按住「后」防御），「轻 J」「重 K」攻击，「气功」「冲天」一键放必杀技。</p>" +
       '<div class="help-cols"><div><h3>基本操作</h3><ul>' +
       "<li><kbd>A</kbd><kbd>D</kbd> 左右移动，<kbd>W</kbd> 跳（<kbd>W</kbd>+<kbd>A</kbd>/<kbd>D</kbd> 斜跳），<kbd>S</kbd> 蹲。</li>" +
       "<li><b>防御不用按键</b>：按住「后」（远离对手的方向）就是站防；按住「下后」就是蹲防。下段攻击只能蹲防，跳攻击只能站防。</li>" +
@@ -86,10 +88,11 @@
       "<li><b>新手模式</b>（默认开）：<kbd>U</kbd> = " + esc(FB) + "，<kbd>I</kbd> = " + esc(DP) + "，按住 <kbd>Shift</kbd> 放重版本。" +
       "AI 的动作空间里本来就有这 4 个「搓招宏」（↓↘→+攻击、→↓↘+攻击），每一下方向和按键照样计入手速；所以给人类一键搓招是公平的。</li></ul></div></div>" +
       '<div class="help-cols"><div><h3>三种玩法</h3><ul>' +
-      "<li><b>观战</b>：两个神经网络对打，下方显示它们的「大脑」。</li>" +
+      "<li><b>观战</b>：两个神经网络对打，右侧显示它们的「大脑」（窄屏时在游戏下方）。</li>" +
       "<li><b>我来打</b>：你操作蓝色 P1，对手可选新手 / 普通 / 困难 / 无限制。</li>" +
-      "<li><b>练习</b>：对手是木桩，右侧任务清单逐项打勾。</li></ul></div>" +
-      "<div><h3>看大脑</h3><ul><li>左列是网络看到的 90 个输入，中间是隐藏层神经元（橙正蓝负），右列是 31 个动作的概率。</li>" +
+      "<li><b>练习</b>：对手是木桩，任务清单逐项打勾（宽屏在右侧，窄屏在游戏下方）。</li></ul></div>" +
+      "<div><h3>看大脑</h3><ul><li>每个大脑顶部写着结构式。输入 214 个 = 游戏状态 90 + 最近 4 次动作 124；中间是隐藏层神经元（橙正蓝负）；输出是 31 个动作的概率和 1 个局势评估。</li>" +
+      "<li>右栏顶部切换「P1 大脑 / P2 大脑 / 全部」；「全部」里点任一个大脑看完整画法。</li>" +
       "<li>点神经元可以把它「敲掉」，看看 AI 会不会变笨。</li><li>随时按 <kbd>H</kbd> 或右上角 <b>?</b> 再打开这页。</li></ul></div></div>" +
       '<div class="help-foot"><button class="b big" id="help-go">知道了，开始</button></div></div>';
   };
@@ -100,7 +103,11 @@
     $("help-go").addEventListener("click", function () { self.hideHelp(); });
     ov.addEventListener("click", function (e) { if (e.target === ov) self.hideHelp(); });
   };
-  Coach.prototype.showHelp = function () { $("help").hidden = false; var b = $("help-go"); if (b) b.focus(); if (this.onHelp) this.onHelp(true); };
+  Coach.prototype.showHelp = function () {
+    var ov = $("help"); ov.hidden = false; ov.scrollTop = 0;
+    var b = $("help-go"); if (b) { try { b.focus({preventScroll: true}); } catch (e) { b.focus(); } }   // 不要因为聚焦把浮层滚到底
+    if (this.onHelp) this.onHelp(true);
+  };
   Coach.prototype.hideHelp = function () {
     $("help").hidden = true;
     try { window.localStorage.setItem("fbl_help_seen", "1"); } catch (e) { /* 隐私模式等：忽略 */ }

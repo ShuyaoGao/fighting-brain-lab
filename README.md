@@ -15,7 +15,7 @@
 
 三种方式任选一种：
 
-- **在线试玩**：<https://ShuyaoGao.github.io/fighting-brain-lab/play/>（GitHub Pages，打开就能玩）。
+- **在线试玩**：<https://ShuyaoGao.github.io/fighting-brain-lab/play/>（GitHub Pages，打开就能玩；手机也能打开，默认是两个 AI 对打，往下滑看它们的大脑）。
 - **下载发布包**：在本仓库右侧 **Releases** 里下载 `格斗大脑实验台-v1.0.zip`（约 8 MB，只含游戏本体），解压后双击文件夹里的 `index.html`（或「开始游戏.html」）。
 - **下载整个仓库**：点 **Code → Download ZIP**，解压后双击 **`play/index.html`**。
 
@@ -25,7 +25,7 @@
 |---|---|
 | 观战（打开即是） | 两个神经网络对打：左边是游戏，右栏是它们的「大脑」（「P1 大脑 / P2 大脑 / 全部」切换，可开「大屏模式」） |
 | 我来打 | 点顶部的「我来打」。对手四档：新手 / 普通 / 困难 / 无限制，旁边写明网络大小和 Elo |
-| 练习 | 对手是木桩，右侧任务清单逐项打勾：前进、后退、跳、蹲、站防、蹲防、轻攻击、重攻击、气功波、冲天拳 |
+| 练习 | 对手是木桩，任务清单逐项打勾：前进、后退、跳、蹲、站防、蹲防、轻攻击、重攻击、气功波、冲天拳 |
 
 键位：<kbd>A</kbd>/<kbd>D</kbd> 移动，<kbd>W</kbd> 跳，<kbd>S</kbd> 蹲，按住「后」= 防御，<kbd>J</kbd> 轻攻击，<kbd>K</kbd> 重攻击。
 **新手模式**（默认开）：<kbd>U</kbd> 气功波、<kbd>I</kbd> 冲天拳，按住 <kbd>Shift</kbd> 放重版本。AI 的动作空间里本来就有这 4 个「搓招宏」，每一下方向和按键照样计入手速，所以给人类一键搓招是公平的。
@@ -50,7 +50,7 @@
 
 **观战 → 看大脑 → 换网络大小 → 敲神经元 → 请同学上手**。逐步讲稿见 [docs/DEMO.md](docs/DEMO.md)，界面上每个元素的含义见 [docs/ARENA.md](docs/ARENA.md)。
 
-- **看大脑**：左列是网络看到的 90 个输入（真实特征名）；AI 有 200ms 反应延迟，所以条形显示的是它「看到的旧值」，白线是此刻真实值，画面里的半透明人影就是它看到的世界。中间是隐藏层（橙正蓝负），右列是 31 个动作的概率和局势评估。底部的归因（梯度 × 输入）是相关性解释，不是因果。
+- **看大脑**：顶部是结构式；输入 214 个 = 游戏状态 90（每行一个真实特征名）+ 最近 4 次动作 124；AI 有 200ms 反应延迟，所以条形显示的是它「看到的旧值」，白线是此刻真实值，画面里的半透明人影就是它看到的世界。中间是隐藏层（橙正蓝负），右列是 31 个动作的概率和局势评估。底部的归因（梯度 × 输入）是相关性解释，不是因果。
 - **换网络大小**：P2 面板「按网络大小挑选」里拖宽度滑块（8 → 512）。大脑顶部的结构式（如「输入 214 → 隐藏 512 → 隐藏 512 → 输出 31 个动作 + 1 个局势评估」）会跟着变。
 - **敲神经元**：点任意神经元把它置零；或一键「随机敲掉 25%」，再「全部恢复」。
 
@@ -88,7 +88,7 @@ league/  eval/       对手池与 Elo、对局评估与录像
 scripts/             训练、循环赛、实验清单、分析、人机对战（tkinter）
 experiments/scaling/ 规模实验：作业清单、循环赛与出图、神经元敲除与线性探针
 results/             进仓库的小结果：result.json、图、录像截图
-tests/               74 个测试（含 JS 与 Python 逐帧对拍、浏览器无头测试）
+tests/               75 个测试（含 JS 与 Python 逐帧对拍、浏览器无头测试）
 docs/                ENV_SPEC（环境规格）、ARENA（实验台说明）、DEMO（课堂讲稿）、LANDSCAPE（格斗 RL 生态调研）、code_map
 credits.json         署名与系列信息（tools/fill_credits.py 用它替换 {{KEY}} 占位）
 ```
@@ -102,7 +102,7 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS / Linux: source .venv/bin/activate
 pip install torch                     # 按显卡选版本：https://pytorch.org/get-started/locally/
 pip install -r requirements.txt
-python -m pytest tests -q             # 74 个测试；没有 Chrome/Edge 或 quickjs 时相关测试自动跳过
+python -m pytest tests -q             # 75 个测试；没有 Chrome/Edge 或 quickjs 时相关测试自动跳过
 
 python scripts/train.py --mode league --steps 8000000 --hidden 128 --layers 2 --delay-ms 200 --apm 600 --out runs/my_first
 python -m experiments.scaling.plan list            # 规模实验的全部作业
