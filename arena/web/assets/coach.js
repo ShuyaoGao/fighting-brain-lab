@@ -69,13 +69,31 @@
     s += '<text x="24" y="230" class="kh" text-anchor="start">左手：移动 / 跳 / 蹲 / 防御</text><text x="270" y="230" class="kh" text-anchor="start">右手：攻击与必杀技</text></svg>';
     return s;
   };
+  // 触屏操控区图解（手机竖屏）
+  Coach.prototype.touchSVG = function () {
+    var s = '<svg viewBox="0 0 360 190" role="img" aria-label="操控区图解：左边是摇杆，右边是 J、K 两个大圆键和气功、冲天两个技能键">';
+    s += '<rect x="4" y="4" width="170" height="182" rx="8" fill="none" stroke="#2c3354" stroke-dasharray="4 3"/>';
+    s += '<circle cx="89" cy="104" r="48" fill="rgba(30,36,64,0.6)" stroke="#7fb0ff" stroke-width="2"/><circle cx="111" cy="104" r="18" fill="#3b6fd0"/>';
+    s += '<text x="89" y="48" text-anchor="middle" class="kl">↑ 跳</text><text x="89" y="172" text-anchor="middle" class="kl">↓ 蹲</text>';
+    s += '<text x="22" y="108" text-anchor="middle" class="kl">←</text><text x="156" y="108" text-anchor="middle" class="kl">→</text>';
+    s += '<text x="14" y="22" class="kh">左手：拖动摇杆</text>';
+    s += '<circle cx="250" cy="150" r="27" fill="#1d2238" stroke="#3a4572" stroke-width="2"/><text x="250" y="156" text-anchor="middle" class="kk">J</text>';
+    s += '<circle cx="320" cy="122" r="27" fill="#1d2238" stroke="#3a4572" stroke-width="2"/><text x="320" y="128" text-anchor="middle" class="kk">K</text>';
+    s += '<circle cx="236" cy="78" r="20" fill="#1d2238" stroke="#2f7d55" stroke-width="2"/><text x="236" y="82" text-anchor="middle" class="kl">气功</text>';
+    s += '<circle cx="300" cy="56" r="20" fill="#1d2238" stroke="#2f7d55" stroke-width="2"/><text x="300" y="60" text-anchor="middle" class="kl">冲天</text>';
+    s += '<text x="250" y="186" text-anchor="middle" class="kl">轻攻击</text><text x="320" y="160" text-anchor="middle" class="kl">重攻击</text>';
+    s += '<text x="196" y="22" class="kh">右手：攻击与技能</text></svg>';
+    return s;
+  };
   Coach.prototype.helpHTML = function () {
     return '<div class="help-card" role="dialog" aria-modal="true" aria-labelledby="help-title">' +
       '<button class="help-x" id="help-close" aria-label="关闭说明">×</button>' +
       '<h2 id="help-title">怎么玩</h2>' +
       '<div class="help-kbd">' + this.keyboardSVG() + "</div>" +
-      '<p class="help-touch">手机 / 平板：打开就是两个 AI 对打，往下滑看它们的大脑。想亲手玩就点顶部「我来打」或「练习」，' +
-      "画面下方会出现虚拟按键：← ↑ ↓ → 移动、跳、蹲（按住「后」防御），「轻 J」「重 K」攻击，「气功」「冲天」一键放必杀技。</p>" +
+      '<div class="help-touch">' + this.touchSVG() +
+      "<p>手机竖屏：打开就是两个 AI 对打，往下滑看它们的大脑。点顶部「我来打」或「练习」，下方变成操控区：" +
+      "<b>左手</b>按住左半边任意处拖动摇杆（上 = 跳，下 = 蹲，朝对手 = 前进，远离对手 = 后退兼防御）；<b>右手</b>点 J 轻攻击、K 重攻击。" +
+      "<b>" + esc(FB) + "</b>：摇杆 ↓ ↘ →（朝对手）一气呵成后点 J；或者直接点「气功」。「冲天」同理；打开「重版本」后技能键放重的。左右手可以同时按。</p></div>" +
       '<div class="help-cols"><div><h3>基本操作</h3><ul>' +
       "<li><kbd>A</kbd><kbd>D</kbd> 左右移动，<kbd>W</kbd> 跳（<kbd>W</kbd>+<kbd>A</kbd>/<kbd>D</kbd> 斜跳），<kbd>S</kbd> 蹲。</li>" +
       "<li><b>防御不用按键</b>：按住「后」（远离对手的方向）就是站防；按住「下后」就是蹲防。下段攻击只能蹲防，跳攻击只能站防。</li>" +

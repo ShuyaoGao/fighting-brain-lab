@@ -45,6 +45,10 @@ body.big .app { grid-template-columns: minmax(0, 35fr) minmax(0, 65fr); }
 .pad button.on { background: #3a4370; }
 /* 触屏：虚拟按键只在「我来打」「练习」里出现，放在画面下方，不挡画面；说明浮层把键盘示意图换成虚拟按键说明 */
 .help-touch { display: none; margin: 0; padding: 10px 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); font-size: 13.5px; }
+.help-touch p { margin: 6px 0 0; } .help-touch b { color: var(--ink); }
+.help-touch svg { width: 100%; max-width: 380px; height: auto; display: block; margin: 0 auto; }
+.help-touch .kk { fill: var(--ink); font-family: var(--f-mono); font-size: 16px; font-weight: 600; }
+.help-touch .kl { fill: var(--ink-2); font-size: 11px; } .help-touch .kh { fill: var(--ink-3); font-size: 11.5px; }
 @media (pointer: coarse) { body:not(.m-watch) .pad { display: grid; } .help-kbd { display: none; } .help-touch { display: block; } }
 .ctrl { min-width: 0; min-height: 0; flex: 1; overflow: auto; display: grid; gap: 12px; align-content: start; padding-right: 2px; }
 .brains { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
@@ -166,6 +170,85 @@ td.n { font-family: var(--f-mono); white-space: nowrap; }
 .diagram .arrow { stroke: var(--ink-3); stroke-width: 1.2; fill: none; marker-end: url(#ah); }
 .rtip { position: fixed; z-index: 20; pointer-events: none; background: #05060c; color: var(--ink); border: 1px solid var(--line);
   font-size: 12px; padding: 6px 9px; line-height: 1.5; max-width: 280px; }
+
+/* ---- 手机竖屏（触屏 + 宽度 ≤ 980px + 竖屏，由 main.js 加 body.touchp） ----
+   观战：游戏贴顶，大脑在下方（紧凑画法）。我来打 / 练习：一屏 100dvh，上方游戏、下方操控区（约 35–40%），不需要上下滚动；
+   大脑、选项都收起来，用「看大脑」「☰」打开。 */
+#menu-btn, #menu, #touchctl, #brain-close, #rotate-hint { display: none; }
+body.touchp { padding: env(safe-area-inset-top) max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+body.touchp header { height: auto; flex-wrap: nowrap; gap: 8px; padding-block: 6px; }
+body.touchp header .tag, body.touchp header .tabs, body.touchp #help-btn, body.touchp #exit-btn { display: none; }
+body.touchp header h1 { font-size: 16px; white-space: nowrap; letter-spacing: 0; }
+body.touchp .modes button { padding: 5px 9px; font-size: 13px; }
+body.touchp #menu-btn { display: block; margin-left: auto; font: inherit; font-size: 18px; width: 38px; height: 34px; background: transparent; color: var(--ink); border: 1px solid var(--line); }
+body.touchp #menu:not([hidden]) { display: grid; position: fixed; z-index: 60; right: 8px; top: calc(env(safe-area-inset-top) + 46px); min-width: 180px;
+  background: var(--surface); border: 1px solid var(--gold); padding: 6px; gap: 2px; }
+#menu button, #menu a { font: inherit; font-size: 14px; text-align: left; padding: 10px 12px; background: transparent; color: var(--ink); border: none; text-decoration: none; }
+#menu button:active, #menu a:active { background: #2b3358; }
+#menu .sep { height: 1px; background: var(--line); margin: 4px 0; }
+body.touchp .app { padding-top: 4px; gap: 8px; }
+body.touchp .pad { display: none !important; }
+/* 我来打 / 练习：一屏 */
+body.touchp:not(.m-watch) { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
+body.touchp:not(.m-watch) header { flex: none; }
+body.touchp:not(.m-watch) .app { flex: 1; height: auto; min-height: 0; display: flex; flex-direction: column; padding-bottom: 0; }
+body.touchp:not(.m-watch) .left { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 6px; }
+body.touchp:not(.m-watch) .game-area { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 6px; }
+body.touchp:not(.m-watch) #game-wrap { flex: none; }
+body.touchp:not(.m-watch) #readout, body.touchp:not(.m-watch) #credits { display: none; }
+body.touchp:not(.m-watch) .ctrl, body.touchp:not(.m-watch) .brains { display: none; }
+body.touchp:not(.m-watch) #touchctl { display: grid; }
+#touchctl { flex: none; height: 38dvh; min-height: 230px; position: relative; grid-template-columns: 1fr 1fr; gap: 6px; padding-bottom: env(safe-area-inset-bottom);
+  touch-action: none; -webkit-user-select: none; user-select: none; }
+#stick-zone { position: relative; border: 1px dashed #2c3354; background: radial-gradient(circle at 50% 60%, rgba(127,176,255,0.07), transparent 70%); touch-action: none; overflow: hidden; }
+#stick-zone .hint { position: absolute; left: 8px; top: 6px; font-size: 11px; color: var(--ink-3); pointer-events: none; }
+#stick-base { position: absolute; left: 50%; top: 58%; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%;
+  border: 2px solid #3a4572; background: rgba(30,36,64,0.55); pointer-events: none; transition: opacity .15s; opacity: 0.75; }
+#stick-base.live { opacity: 1; border-color: var(--p1); }
+#stick-base::before { content: "↑"; position: absolute; left: 50%; top: 4px; transform: translateX(-50%); color: var(--ink-3); font-size: 12px; }
+#stick-base::after { content: "↓"; position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); color: var(--ink-3); font-size: 12px; }
+#stick-knob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #9cc3ff, #3b6fd0); box-shadow: 0 0 0 3px rgba(127,176,255,0.25); }
+#btn-zone { position: relative; touch-action: none; }
+.tbtn { position: absolute; border-radius: 50%; border: 2px solid #3a4572; background: #1d2238; color: var(--ink); font: inherit; font-weight: 700;
+  display: grid; place-items: center; line-height: 1; touch-action: none; -webkit-tap-highlight-color: transparent; transition: transform .06s, background .06s; }
+.tbtn small { display: block; font-size: 11px; font-weight: 500; color: var(--ink-2); margin-top: 3px; }
+.tbtn.on { transform: scale(0.92); background: #3a4370; border-color: var(--gold); }
+.tbtn.tbig { width: 78px; height: 78px; font-size: 26px; background: #232a4a; }
+.tbtn.tbig[data-tk=L] { right: 94px; bottom: 16px; }
+.tbtn.tbig[data-tk=H] { right: 8px; bottom: 58px; }
+.tbtn.sk { width: 58px; height: 58px; font-size: 14px; border-color: #2f7d55; color: #9ff0c4; }
+.tbtn.sk[data-tk=fb] { right: 104px; bottom: 104px; }
+.tbtn.sk[data-tk=dp] { right: 30px; bottom: 140px; }
+#heavy-tog { position: absolute; right: 6px; top: 6px; width: auto; height: 32px; border-radius: 16px; padding: 0 12px; font-size: 13px; }
+#heavy-tog.on { background: #5a3a12; border-color: var(--gold); color: var(--gold); transform: none; }
+body:not(.easy) .tbtn.sk, body:not(.easy) #heavy-tog { display: none; }
+#mob-info { display: none; }
+body.touchp:not(.m-watch) #mob-info { display: flex; flex-direction: column; justify-content: center; gap: 8px; flex: 1; min-height: 0; overflow: hidden; }
+.mi-row { display: flex; align-items: center; gap: 0; }
+.mi-row .mi-k { font-size: 12px; color: var(--ink-3); width: 40px; flex: none; }
+.mi-row button { flex: 1; font: inherit; font-size: 13px; padding: 7px 4px; background: transparent; color: var(--ink-2); border: 1px solid var(--line); }
+.mi-row button + button { border-left: none; }
+.mi-row button.on { background: #2b3358; color: var(--ink); border-color: #4a5590; }
+.mi-act { gap: 8px; } .mi-act button { flex: none; padding: 7px 14px; border-radius: 16px; border-left: 1px solid var(--line) !important; background: #1d2238; }
+.mi-easy { font-size: 13px; color: var(--ink-2); display: flex; align-items: center; gap: 4px; margin-left: auto; }
+#mi-read { margin: 0; font-family: var(--f-mono); font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.m-play #mi-dummy, body.m-practice #mi-opp { display: none; }
+/* 「看大脑」「选项」：盖在操控区上方的全屏面板 */
+body.touchp.sheet-brain:not(.m-watch) .brains, body.touchp.sheet-ctrl:not(.m-watch) .ctrl {
+  display: flex; flex-direction: column; position: fixed; z-index: 45; left: 0; right: 0; top: 0; bottom: 0; overflow: auto;
+  background: var(--bg); padding: calc(env(safe-area-inset-top) + 8px) 10px calc(env(safe-area-inset-bottom) + 10px); gap: 10px; }
+body.touchp.sheet-ctrl:not(.m-watch) .ctrl { display: grid; align-content: start; }
+body.touchp.sheet-brain:not(.m-watch) #brain-close, body.touchp.sheet-ctrl:not(.m-watch) #brain-close { display: block; position: fixed; z-index: 46; right: 10px;
+  bottom: calc(env(safe-area-inset-bottom) + 12px); font: inherit; font-size: 15px; font-weight: 700; padding: 10px 18px; background: var(--gold); color: #1a1400; border: none; border-radius: 20px; }
+body.touchp.sheet-brain .brain-stack { flex: none; grid-auto-rows: 430px; overflow: visible; }
+body.touchp.m-practice.sheet-brain #practice-pane { display: grid; }
+/* 横屏的手机：提示竖屏体验更好，可以选择继续（继续时用横排的简单方向键） */
+body.touchl:not(.m-watch):not(.rot-ok) #rotate-hint { display: grid; position: fixed; inset: 0; z-index: 70; place-items: center; text-align: center;
+  background: rgba(5,6,12,0.94); padding: 16px; }
+#rotate-hint b { font-size: 20px; display: block; margin-bottom: 8px; }
+#rotate-hint button { margin-top: 14px; font: inherit; padding: 8px 18px; background: transparent; color: var(--ink); border: 1px solid var(--line); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
 /* ---- 玩法切换 / 新手引导 ---- */
@@ -277,6 +360,15 @@ button.big:hover { background: #ffdd66; }
   <span class="sp"></span>
   <button id="help-btn" title="操作说明（H）" aria-label="操作说明">?</button>
   <button id="exit-btn" title="停止全部计算并结束">退出</button>
+  <button id="menu-btn" aria-label="菜单" aria-expanded="false" aria-controls="menu">☰</button>
+  <div id="menu" role="menu" hidden>
+    <a href="#report" role="menuitem" id="menu-report">实验报告</a>
+    <a href="#play" role="menuitem" id="menu-play">回到实验台</a>
+    <button role="menuitem" id="menu-ctrl">对手与选项</button>
+    <button role="menuitem" id="menu-help">操作说明</button>
+    <div class="sep"></div>
+    <button role="menuitem" id="menu-exit">退出</button>
+  </div>
 </header>
 <main class="app">
   <div class="left">
@@ -289,6 +381,22 @@ button.big:hover { background: #ffdd66; }
       <button data-pad="left">←</button><button data-pad="up">↑</button><button data-pad="down">↓</button><button data-pad="right">→</button>
       <span></span><button data-pad="L">轻 J</button><button data-pad="H">重 K</button>
       <button data-easy="0">气功</button><button data-easy="2">冲天</button>
+    </div>
+    <div id="mob-info" aria-label="对局信息">
+      <div class="mi-row" id="mi-opp"><span class="mi-k">对手</span><button data-mpre="easy">新手</button><button data-mpre="normal">普通</button><button data-mpre="hard">困难</button><button data-mpre="free">无限制</button></div>
+      <div class="mi-row" id="mi-dummy"><span class="mi-k">木桩</span><button data-mdummy="stand" class="on">站着</button><button data-mdummy="block">只防御</button><button data-mdummy="jump">只跳</button><button data-mdummy="attack">会出拳</button></div>
+      <p id="mi-read"></p>
+      <div class="mi-row mi-act"><button id="brain-toggle" type="button">看大脑</button><label class="mi-easy"><input type="checkbox" id="mi-easy" checked> 新手模式</label><button id="mi-restart" type="button">重开</button></div>
+    </div>
+    <div id="touchctl" aria-label="触屏操控区">
+      <div id="stick-zone"><span class="hint">左手：按住任意处拖动摇杆</span><div id="stick-base"><div id="stick-knob"></div></div></div>
+      <div id="btn-zone">
+        <button class="tbtn sk" data-tk="fb" aria-label="气功波">气功</button>
+        <button class="tbtn sk" data-tk="dp" aria-label="冲天拳">冲天</button>
+        <button class="tbtn tbig" data-tk="L" aria-label="轻攻击 J">J<small>轻</small></button>
+        <button class="tbtn tbig" data-tk="H" aria-label="重攻击 K">K<small>重</small></button>
+        <button class="tbtn" id="heavy-tog" aria-pressed="false" title="打开后技能键放重版本">重版本</button>
+      </div>
     </div>
     <p id="readout"></p>
   </section>
@@ -357,6 +465,8 @@ button.big:hover { background: #ffdd66; }
   </section>
 </main>
 <div id="mvtip" hidden></div>
+<button id="brain-close" type="button">返回游戏</button>
+<div id="rotate-hint" role="status"><div><b>竖屏体验更佳</b>把手机竖过来：上面是游戏，下面是摇杆和按键。<br><button id="rot-ok" type="button">仍然横屏继续</button></div></div>
 <div id="help" hidden></div>
 <!--REPORT-->
 
@@ -369,6 +479,7 @@ button.big:hover { background: #ffdd66; }
 <script src="assets/audio.js"></script>
 <script src="assets/input.js"></script>
 <script src="assets/coach.js"></script>
+<script src="assets/touchctl.js"></script>
 <script src="assets/brainview.js"></script>
 <script src="assets/gen/report_data.js"></script>
 <script src="assets/report.js"></script>

@@ -57,6 +57,29 @@
   var gameCv = $("game"), R = new window.ArenaRender(gameCv), sfx = new window.ArenaSfx(), input = new window.ArenaInput();
   input.bind(window);
   var coach = new window.ArenaCoach({getFacing: function () { return core.f[0].facing; }});
+  // 手机竖屏操控区（浮动摇杆 + J/K 大圆键 + 技能键）
+  var touch = window.ArenaTouch && $("touchctl") ? new window.ArenaTouch($("touchctl"), input) : null;
+  // 触屏 + 窄屏：竖屏 = body.touchp（游戏在上、操控区在下）；横屏 = body.touchl（提示竖屏更好）
+  var MQ_P = window.matchMedia ? window.matchMedia("(pointer: coarse) and (max-width: 980px) and (orientation: portrait)") : null;
+  var MQ_L = window.matchMedia ? window.matchMedia("(pointer: coarse) and (orientation: landscape) and (max-height: 600px)") : null;
+  function applyTouchLayout() {
+    var p = !!(MQ_P && MQ_P.matches), l = !!(MQ_L && MQ_L.matches);
+    var changed = document.body.classList.contains("touchp") !== p;
+    document.body.classList.toggle("touchp", p);
+    document.body.classList.toggle("touchl", l);
+    if (changed) { closeSheets(); if (touch) touch.reset(); setTimeout(function () { refreshBrains(); }, 0); }
+  }
+  function closeSheets() { document.body.classList.remove("sheet-brain", "sheet-ctrl"); }
+  function openSheet(which) {
+    closeSheets(); document.body.classList.add("sheet-" + which); toggleMenu(false);
+    if (touch) touch.reset();
+    setTimeout(function () { refreshBrains(); }, 0);
+  }
+  function toggleMenu(on) {
+    var m = $("menu"); if (!m) return;
+    var open = on === undefined ? m.hidden : on;
+    m.hidden = !open; $("menu-btn").setAttribute("aria-expanded", open);
+  }
   document.querySelectorAll("[data-pad]").forEach(function (btn) {
     var k = btn.getAttribute("data-pad");
     function set(v) { return function (e) { e.preventDefault(); input.touch[k] = v; btn.classList.toggle("on", v); sfx.resume(); }; }
@@ -280,7 +303,8 @@
   function render() {
     R.opts.boxes = app.opts.boxes; R.opts.ghost = app.opts.ghost;
     R.draw(core, {names: [playerName(0), playerName(1)], wins: app.match.wins, banner: banner(), ghosts: ghosts(), paused: app.paused, noTimer: app.mode === "practice"});
-    if (app.mode !== "practice") views.forEach(function (v) { if (!v.cv.hidden) v.draw(core, v.side); });
+    var brainsHidden = document.body.classList.contains("touchp") && app.mode !== "watch" && !document.body.classList.contains("sheet-brain");
+    if (app.mode !== "practice" && !brainsHidden) views.forEach(function (v) { if (!v.cv.hidden) v.draw(core, v.side); });
     coach.renderHistory();
     updateReadout();
   }
@@ -291,6 +315,18 @@
       if (p.bp && p.bp.last) parts.push("P" + (i + 1) + "：" + SPEC.actions[p.bp.last.action] + "（" + Math.round(p.bp.last.fw.probs[p.bp.last.action] * 100) + "%），局势 " + (p.bp.last.value >= 0 ? "+" : "") + p.bp.last.value.toFixed(2));
     });
     el.textContent = parts.join("　｜　") + "　·　第 " + core.frame + " 帧";
+    var mi = $("mi-read");
+    if (mi && document.body.classList.contains("touchp") && app.mode !== "watch") {
+      var p2 = app.players[1], txt;
+      if (app.mode === "practice") {
+        var t = coach.tasks || {}, n = 0; for (var k in t) if (t[k]) n++;
+        txt = "任务 " + n + " / 10 · 点「任务清单」看哪些还没完成";
+      } else {
+        txt = "比分 " + app.match.wins[0] + " : " + app.match.wins[1] + (p2.bp && p2.bp.last ? " · 对手想：" + SPEC.actions[p2.bp.last.action] + "（" +
+          Math.round(p2.bp.last.fw.probs[p2.bp.last.action] * 100) + "%）· 局势 " + (p2.bp.last.value >= 0 ? "+" : "") + p2.bp.last.value.toFixed(2) : "");
+      }
+      if (mi.textContent !== txt) mi.textContent = txt;
+    }
   }
 
   // ---------------- 主循环（固定时间步） ----------------
@@ -335,6 +371,8 @@
     document.querySelectorAll("[data-mode]").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-mode") === mode); b.setAttribute("aria-pressed", b.getAttribute("data-mode") === mode); });
     var human = mode !== "watch";
     input.enabled = human;
+    closeSheets(); if (touch) touch.reset();
+    var bt = $("brain-toggle"); if (bt) bt.textContent = mode === "practice" ? "任务清单" : "看大脑";
     $("inhist").hidden = !human;
     if (mode === "practice") { coach.startPractice(); setHuman(0); setDummy(1); newMatch(); if (cb) cb(); }
     else {
@@ -420,6 +458,7 @@
       var box = $("pre" + i); if (!box) return;
       box.querySelectorAll("button").forEach(function (b) { b.classList.toggle("on", hit && b.getAttribute("data-pre") === hit.key); });
       $("preinfo" + i).textContent = hit ? presetInfo(hit) : "自选模型（见下方「按网络大小挑选」）";
+      if (i === 1) document.querySelectorAll("[data-mpre]").forEach(function (b) { b.classList.toggle("on", !!hit && b.getAttribute("data-mpre") === hit.key); });
     });
   }
   function updateModelInfo() {
@@ -456,6 +495,7 @@
       var k = e.target.getAttribute && e.target.getAttribute("data-dummy"); if (!k) return;
       app.dummy = k;
       this.querySelectorAll("button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-dummy") === k); });
+      document.querySelectorAll("[data-mdummy]").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-mdummy") === k); });
       gameCv.focus();
     });
     $("easy").checked = input.easy;
@@ -468,6 +508,31 @@
     });
     $("bigmode").addEventListener("change", function () { app.big = this.checked; refreshBrains(); });
     $("exit-btn").addEventListener("click", function () { shutdown(); });
+    $("menu-btn").addEventListener("click", function (e) { e.stopPropagation(); toggleMenu(); });
+    document.addEventListener("click", function (e) { var m = $("menu"); if (m && !m.hidden && !m.contains(e.target) && e.target !== $("menu-btn")) toggleMenu(false); });
+    $("menu-report").addEventListener("click", function () { toggleMenu(false); closeSheets(); });
+    $("menu-play").addEventListener("click", function () { toggleMenu(false); });
+    $("menu-ctrl").addEventListener("click", function () { if (app.mode === "watch") { toggleMenu(false); $("pickers").scrollIntoView({block: "start"}); } else openSheet("ctrl"); });
+    $("menu-help").addEventListener("click", function () { toggleMenu(false); coach.showHelp(); });
+    $("menu-exit").addEventListener("click", function () { toggleMenu(false); shutdown(); });
+    $("brain-toggle").addEventListener("click", function () { openSheet("brain"); });
+    $("brain-close").addEventListener("click", function () { closeSheets(); gameCv.focus(); });
+    $("rot-ok").addEventListener("click", function () { document.body.classList.add("rot-ok"); });
+    document.querySelectorAll("[data-mpre]").forEach(function (b) {
+      b.addEventListener("click", function () { var m = presetModel(PRESETS.filter(function (p) { return p.key === b.getAttribute("data-mpre"); })[0]); if (m) pickModel(1, m); });
+    });
+    document.querySelectorAll("[data-mdummy]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var k = b.getAttribute("data-mdummy"); app.dummy = k;
+        document.querySelectorAll("[data-mdummy]").forEach(function (x) { x.classList.toggle("on", x === b); });
+        $("dummy").querySelectorAll("button").forEach(function (x) { x.classList.toggle("on", x.getAttribute("data-dummy") === k); });
+      });
+    });
+    $("mi-easy").addEventListener("change", function () { $("easy").checked = this.checked; $("easy").dispatchEvent(new Event("change")); });
+    $("easy").addEventListener("change", function () { $("mi-easy").checked = this.checked; });
+    $("mi-restart").addEventListener("click", function () { newMatch(); });
+    if (MQ_P && MQ_P.addEventListener) { MQ_P.addEventListener("change", applyTouchLayout); MQ_L.addEventListener("change", applyTouchLayout); }
+    applyTouchLayout();
     $("pause").addEventListener("click", function () { app.paused = !app.paused; app.pausedByUser = app.paused; this.textContent = app.paused ? "继续" : "暂停"; });
     $("step").addEventListener("click", function () { app.paused = true; $("pause").textContent = "继续"; tickFrame(); });
     $("speed").addEventListener("change", function () { app.speed = +this.value; });
@@ -539,6 +604,7 @@
     if (beatTimer) { clearInterval(beatTimer); beatTimer = null; }
     coach.stop();
     input.unbind();
+    if (touch) { touch.reset(); touch.unbind(); }
     var closing = sfx.close();
     window.removeEventListener("resize", onResize);
     window.removeEventListener("hashchange", onHash);
@@ -604,6 +670,8 @@
           widths: n ? n.widths.slice() : null, nIn: n ? n.actor.layers[0].nIn : null, nActions: n ? n.nActions : null, nParams: n ? n.nParams : null};
       });
     },
+    touch: function () { return {touchp: document.body.classList.contains("touchp"), dir: $("touchctl").getAttribute("data-dir"),
+      t: JSON.parse(JSON.stringify(input.touch)), sheet: document.body.classList.contains("sheet-brain") ? "brain" : (document.body.classList.contains("sheet-ctrl") ? "ctrl" : "")}; },
     exitState: function () { return {stopped: app.stopped, raf: rafId !== null, audio: sfx.ctx ? sfx.ctx.state : (app.audioClosed || "none"), beat: beatTimer !== null}; },
     shutdown: shutdown,
     cutKeys: cutKeys,

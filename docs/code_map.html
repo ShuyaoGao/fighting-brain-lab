@@ -114,7 +114,7 @@ footer.credit { border-top: 1px solid var(--line); padding-top: 16px; font-size:
   </div>
   <div class="stats" aria-label="仓库规模">
     <div class="stat"><b>~6,300</b><span>行 Python（不含测试）</span></div>
-    <div class="stat"><b>~3,000</b><span>行浏览器 JS（arena）</span></div>
+    <div class="stat"><b>~3,500</b><span>行浏览器 JS（arena）</span></div>
     <div class="stat"><b>12</b><span>个测试文件 · 75 项测试</span></div>
     <div class="stat"><b>214</b><span>维网络输入 · 31 个动作</span></div>
   </div>
@@ -387,7 +387,7 @@ footer.credit { border-top: 1px solid var(--line); padding-top: 16px; font-size:
         <tr><td class="mono">test_arena_browser.py</td><td class="mono">main.js · brainview.js · capture.py</td><td>在无头浏览器里加载真实模型、打完开场、切「全部」大脑、敲神经元，全程无 JS 异常</td></tr>
         <tr><td class="mono">test_adapters.py</td><td class="mono">adapter_base · retro · diambra</td><td>用假的模拟器模块验证按键映射、朝向镜像、RAM 到奖励的换算</td></tr>
         <tr><td class="mono">test_devserver.py</td><td class="mono">arena/__main__.py · main.js</td><td>本地服务不残留：/shutdown 立即退出、心跳超时自动退出；真实页面点「退出」后服务关闭并显示结束页</td></tr>
-        <tr><td class="mono">test_play_release.py</td><td class="mono">play/ · coach.js · input.js · main.js</td><td>免安装版在 file:// 下端到端可用：说明浮层、本地字体、页脚署名、观战、敲除、键盘、手搓与新手键必杀技、练习任务</td></tr>
+        <tr><td class="mono">test_play_release.py</td><td class="mono">play/ · coach.js · input.js · touchctl.js · main.js</td><td>手机竖屏（摇杆、按键、多点触控、一屏不滚动）与电脑端；免安装版在 file:// 下端到端可用：说明浮层、本地字体、页脚署名、观战、敲除、键盘、手搓与新手键必杀技、练习任务</td></tr>
         <tr><td class="mono">test_play_vs_ai.py</td><td class="mono">play_vs_ai.py</td><td>键盘按键到逐帧输入的换算</td></tr>
       </tbody>
     </table>
@@ -477,7 +477,7 @@ python -m arena.build --release</pre>
     { label: "真实游戏适配器（需要 ROM 和 Linux）", ids: ["envs/adapter_base.py", "envs/retro_adapter.py", "envs/diambra_adapter.py"] },
     { label: "评估与基础设施", ids: ["eval/match.py", "eval/stats.py", "eval/record.py", "common/vec_env.py", "common/stamp.py", "scripts/jobqueue.py"] },
     { label: "实验台构建与发布", ids: ["arena/__main__.py", "arena/export.py", "arena/build.py", "arena/fonts.py", "arena/capture.py", "arena/browser_check.py", "credits.json", "tools/fill_credits.py"] },
-    { label: "浏览器实验台（JS）", ids: ["arena/web/assets/main.js", "arena/web/assets/fight.js", "arena/web/assets/brain.js", "arena/web/assets/brainview.js", "arena/web/assets/render.js", "arena/web/assets/input.js", "arena/web/assets/coach.js", "arena/web/assets/audio.js", "arena/web/assets/report.js"] }
+    { label: "浏览器实验台（JS）", ids: ["arena/web/assets/main.js", "arena/web/assets/fight.js", "arena/web/assets/brain.js", "arena/web/assets/brainview.js", "arena/web/assets/render.js", "arena/web/assets/input.js", "arena/web/assets/touchctl.js", "arena/web/assets/coach.js", "arena/web/assets/audio.js", "arena/web/assets/report.js"] }
   ];
   // [label, lines (null = not counted), role, key definitions, dependencies]
   var M = {
@@ -517,19 +517,20 @@ python -m arena.build --release</pre>
     "scripts/jobqueue.py": ["jobqueue.py", 76, "极简本地作业队列：P 个作业并行，结果文件已存在就跳过，中断后可以接着跑。", ["class Job", "run_queue"], []],
     "arena/__main__.py": ["arena/__main__.py", 117, "一条命令启动实验台：导出模型 → 生成页面 → 本地 HTTP 服务 → 打开浏览器。服务不残留：页面「退出」调用 /shutdown 立即退出；页面每 5 秒发心跳，超过 30 秒收不到（标签页已关闭）自动退出。导出的是本地 runs/ 里训练出的模型；只想玩直接双击 play/index.html（纯静态，没有后台进程）。", ["main"], ["arena/build.py", "arena/export.py"]],
     "arena/export.py": ["export.py", 212, "把训练好的 actor、critic 真实权重、观测特征表、动作名和实验结果导出成浏览器能加载的 JS 文件（每个模型一个，按需加载，file:// 也能用），可选半精度减小体积。spec.js 里带着 naming.json 的招式名与配色。", ["export_models", "export_spec", "export_report", "net_spec"], ["envs/fighting2d/constants.py", "envs/fighting2d/moves.py", "envs/fighting2d/obs_spec.py"]],
-    "arena/build.py": ["build.py", 199, "生成可运行页面。本地版：arena/web/index.html。--release：生成免安装版 play/（完整 HTML、精选模型 float16、本地字体与录像，双击 index.html 即可，也能直接放 GitHub Pages）和 release/*.zip（同一份内容打包，挂到 GitHub Release）。版本号与署名读 credits.json。", ["build_local", "build_dist", "build_release", "split_page"], ["arena/export.py", "arena/fonts.py"]],
+    "arena/build.py": ["build.py", 200, "生成可运行页面。本地版：arena/web/index.html。--release：生成免安装版 play/（完整 HTML、精选模型 float16、本地字体与录像，双击 index.html 即可，也能直接放 GitHub Pages）和 release/*.zip（同一份内容打包，挂到 GitHub Release）。版本号与署名读 credits.json。", ["build_local", "build_dist", "build_release", "split_page"], ["arena/export.py", "arena/fonts.py"]],
     "arena/fonts.py": ["fonts.py", 108, "把网页字体打包到本地：下载开源字体（SIL OFL 1.1）→ 按页面实际用到的字符取子集 → 以 data URI 写进 assets/fonts.js，离线、file:// 双击都能用。第一次构建需要联网，之后用缓存；没有网络也没有缓存时页面退回系统字体。", ["FONTS", "page_chars", "subset", "build"], []],
     "arena/capture.py": ["capture.py", 217, "用本机已安装的 Chrome/Edge（无头模式 + DevTools 协议）驱动实验台：截图、逐帧录像、无头冒烟测试。不安装任何浏览器。", ["class Browser", "find_browser", "page_url"], ["arena/build.py"]],
-    "arena/browser_check.py": ["browser_check.py", 241, "免安装版的跨浏览器验收：用本机 Chrome/Edge 以 file:// 打开 play/index.html，在 1920×1080 与 1366×768 下逐项检查：操作说明浮层、本地字体、页脚署名、左右两栏、「全部」模式堆叠与点击切换单个、大屏模式、结构式数字与模型一致、敲除、我来打、键盘、手搓气功波与新手键、练习任务、退出按钮（主循环停止、音效关闭、结束页）。结果写到 release/browser_check.json。", ["class Check", "run_one", "main"], ["arena/capture.py"]],
+    "arena/browser_check.py": ["browser_check.py", 401, "免安装版的跨浏览器验收：用本机 Chrome/Edge 以 file:// 打开 play/index.html，在 1920×1080 与 1366×768 下逐项检查：操作说明浮层、本地字体、页脚署名、左右两栏、「全部」模式堆叠与点击切换单个、大屏模式、结构式数字与模型一致、敲除、我来打、键盘、手搓气功波与新手键、练习任务、退出按钮（主循环停止、音效关闭、结束页）。结果写到 release/browser_check.json。", ["class Check", "run_one", "main"], ["arena/capture.py"]],
     "credits.json": ["credits.json", 11, "署名与系列信息的唯一配置：作者、学校（英文 / 韩文）、系列名、案例号、GitHub 用户名与仓库名、年份、版本号。值为空时，页面和文档里保留 &#123;&#123;KEY&#125;&#125; 形式的占位。", ["AUTHOR_EN", "UNIVERSITY_EN", "REPO_NAME", "VERSION"], []],
     "tools/fill_credits.py": ["fill_credits.py", null, "发布前填署名用：读 credits.json，把文档里 &#123;&#123;KEY&#125;&#125; 形式的占位替换成实际值，并更新 play/ 页脚的署名。", ["main"], []],
-    "arena/web/assets/main.js": ["main.js", 615, "实验台主程序：三种玩法（观战 / 我来打 / 练习，只靠顶部标签切换）、三局两胜与开场/KO 演出、固定 60 帧时间步、人类/AI/木桩玩家、对手预设（新手 / 普通 / 困难 / 无限制）、模型按需加载；右栏大脑按 N 个智能体管理（「P1 大脑 | P2 大脑 | 全部」切换，全部模式 N ≤ 2 上下堆叠、N = 3–4 宽度够时 2×2）、大屏模式（左右 45:55 → 35:65）、播放控制、神经元敲除、新手引导接入；「退出」停止主循环/定时器/心跳、关闭音效与手柄监听、释放模型并显示结束页；测试钩子 window.ARENA_TEST。", ["PRESETS", "setMode", "newMatch", "ARENA_TEST"], ["arena/web/assets/fight.js", "arena/web/assets/brain.js", "arena/web/assets/brainview.js", "arena/web/assets/render.js", "arena/web/assets/input.js", "arena/web/assets/coach.js", "arena/web/assets/audio.js", "arena/web/assets/report.js"]],
+    "arena/web/assets/main.js": ["main.js", 692, "实验台主程序：三种玩法（观战 / 我来打 / 练习，只靠顶部标签切换）、三局两胜与开场/KO 演出、固定 60 帧时间步、人类/AI/木桩玩家、对手预设（新手 / 普通 / 困难 / 无限制）、模型按需加载；右栏大脑按 N 个智能体管理（「P1 大脑 | P2 大脑 | 全部」切换，全部模式 N ≤ 2 上下堆叠、N = 3–4 宽度够时 2×2）、大屏模式（左右 45:55 → 35:65）、播放控制、神经元敲除、新手引导接入；「退出」停止主循环/定时器/心跳、关闭音效与手柄监听、释放模型并显示结束页；测试钩子 window.ARENA_TEST。", ["PRESETS", "setMode", "newMatch", "ARENA_TEST"], ["arena/web/assets/fight.js", "arena/web/assets/brain.js", "arena/web/assets/brainview.js", "arena/web/assets/render.js", "arena/web/assets/input.js", "arena/web/assets/coach.js", "arena/web/assets/audio.js", "arena/web/assets/report.js"]],
     "arena/web/assets/fight.js": ["fight.js", 553, "core.py 的逐行 JS 移植，加上策略推理。与 Python 版逐帧一致。", ["Core", "Policy", "MACROS", "encodeInput"], []],
     "arena/web/assets/brain.js": ["brain.js", 218, "浏览器里的神经网络：前向、critic 价值、对 log π 的输入梯度、积分梯度、神经元 mask。BrainPlayer 复刻训练时的整条管线（延迟、跳帧、宏、APM、动作历史）。数学与 agents/ppo.py 对拍。", ["Net.forward", "Net.value", "Net.grads", "Net.explain", "BrainPlayer"], ["arena/web/assets/fight.js"]],
-    "arena/web/assets/brainview.js": ["brainview.js", 532, "大脑面板（右栏）。顶部结构式「输入 214 → 隐藏 W → … → 输出 31 个动作 + 1 个局势评估 · 参数」，数字从实际模型读取；每层上方写个数与显示方式。单个模式：输入按语义分组显示真实数值和归因，隐藏层只展开对当前决策贡献最大的若干个神经元（小圆点）并附全层方阵，只画贡献最大的连线，输出 31 个动作的概率和局势仪表。紧凑模式（全部）：输入按组聚合、隐藏层全层热力方阵、输出列概率最高的几个动作，边框用阵营色，点击切到单个模式。", ["BrainView"], ["arena/web/assets/brain.js"]],
+    "arena/web/assets/brainview.js": ["brainview.js", 618, "大脑面板（右栏）。顶部结构式「输入 214 → 隐藏 W → … → 输出 31 个动作 + 1 个局势评估 · 参数」，数字从实际模型读取；每层上方写个数与显示方式。单个模式：输入按语义分组显示真实数值和归因，隐藏层只展开对当前决策贡献最大的若干个神经元（小圆点）并附全层方阵，只画贡献最大的连线，输出 31 个动作的概率和局势仪表。紧凑模式（全部）：输入按组聚合、隐藏层全层热力方阵、输出列概率最高的几个动作，边框用阵营色，点击切到单个模式。", ["BrainView"], ["arena/web/assets/brain.js"]],
     "arena/web/assets/render.js": ["render.js", 418, "游戏画面：程序化绘制的角色动画、命中火花、震屏、血条和回合 HUD、开场与 KO 演出、“AI 看到的画面”幽灵叠加。角色配色来自 naming.json。只读状态，不改状态。", ["drawFrame"], ["arena/web/assets/fight.js"]],
     "arena/web/assets/input.js": ["input.js", 101, "人类输入：键盘（WASD/方向键 + J/K）与手柄，换算成和 Python 版相同的“相对朝向”逐帧输入。新手模式（默认开）：U = 气功波、I = 冲天拳，按住 Shift 放重版本（手柄 LB / RB 同理）；做法是把 AI 动作空间里同一个 4 帧搓招宏逐帧按出来，不是直接生成招式，所以手速照样计算。退出时 unbind() 断开键盘与手柄监听。", ["Input.code", "Input.macro", "EASY"], ["arena/web/assets/fight.js"]],
-    "arena/web/assets/coach.js": ["coach.js", 298, "新手引导：操作说明浮层（键盘示意图）、招式表（悬停时按顺序点亮要按的方向键）、输入历史栏与搓招成败提示（没出来时指出差在哪一步）、练习模式（木桩对手 + 任务清单）。只读游戏状态，不改规则（练习模式的回血除外）。招式名来自 naming.json。", ["MOVELIST", "Coach.diagnose", "Coach.startPractice", "Coach.dummyCode"], ["arena/web/assets/fight.js"]],
+    "arena/web/assets/touchctl.js": ["touchctl.js", 95, "手机竖屏操控区：左下浮动摇杆（跟随手指起点，8 个方向 + 中间不动，松手回中）、右下 J / K 大圆键、新手模式的「气功」「冲天」技能键与「重版本」切换。多点触控（摇杆和按键各自跟踪 pointerId）、按下反馈与轻微振动、防误触。只写 ArenaInput 的触屏状态，技能键复用同一组搓招宏。", ["ArenaTouch"], ["arena/web/assets/input.js"]],
+    "arena/web/assets/coach.js": ["coach.js", 323, "新手引导：操作说明浮层（键盘示意图）、招式表（悬停时按顺序点亮要按的方向键）、输入历史栏与搓招成败提示（没出来时指出差在哪一步）、练习模式（木桩对手 + 任务清单）。只读游戏状态，不改规则（练习模式的回血除外）。招式名来自 naming.json。", ["MOVELIST", "Coach.diagnose", "Coach.startPractice", "Coach.dummyCode"], ["arena/web/assets/fight.js"]],
     "arena/web/assets/audio.js": ["audio.js", 68, "WebAudio 合成音效，不用任何外部音频素材；浏览器要求用户交互后才出声，第一次点击或按键时恢复。退出时 close() 关闭 AudioContext。", ["Sfx"], []],
     "arena/web/assets/report.js": ["report.js", 460, "实验报告页：读 arena/export.py 从 results/*.json 导出的数据，画全部交互图表（手写 inline SVG，带悬停提示）并填数字。", ["ARENA_REPORT_RENDER"], ["arena/web/assets/fight.js"]]
   };
@@ -560,7 +561,7 @@ python -m arena.build --release</pre>
     "arena/web/assets/fight.js": ["test_js_parity"],
     "arena/web/assets/brain.js": ["test_arena_brain"], "agents/ppo.py": ["test_arena_brain"],
     "arena/web/assets/main.js": ["test_arena_browser", "browser_check"], "arena/web/assets/brainview.js": ["test_arena_browser"],
-    "arena/web/assets/input.js": ["browser_check"], "arena/web/assets/coach.js": ["browser_check"],
+    "arena/web/assets/input.js": ["browser_check"], "arena/web/assets/coach.js": ["browser_check"], "arena/web/assets/touchctl.js": ["browser_check", "test_play_release"],
     "arena/capture.py": ["test_arena_browser"],
     "envs/adapter_base.py": ["test_adapters"], "envs/retro_adapter.py": ["test_adapters"], "envs/diambra_adapter.py": ["test_adapters"],
     "scripts/play_vs_ai.py": ["test_play_vs_ai"]
