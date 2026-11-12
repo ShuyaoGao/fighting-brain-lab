@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>拆招擂台</title>
+<meta name="description" content="格斗大脑实验台的更强版本：浏览器里的街机格斗游戏，对手是每帧推演上百种走法、会记住你习惯的搜索型 AI。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zhi+Mang+Xing&family=Noto+Sans+SC:wght@400;500;700&family=Oxanium:wght@500;700&display=swap">
+<style>
+/* 布局：上面一条标题栏 + 工具栏，中间 16:9 擂台（菜单/暂停/说明/结算盖在上面），下面是常驻的“怎么玩”说明。单一深色街机风格。 */
+:root {
+  --night: #11121c; --panel: #1a1b29; --panel-2: #222336;
+  --paper: #ece4d3; --mist: #9a97ab;
+  --ember: #e4573d; --jade: #2fb3a0; --gold: #efc25a;
+  --line: rgba(236, 228, 211, .14);
+  --brush: "Zhi Mang Xing", "STKaiti", "KaiTi", serif;
+  --sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --digit: "Oxanium", "Noto Sans SC", ui-monospace, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--night); color: var(--paper); font: 14px/1.6 var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px 28px;
+}
+.page { width: min(100%, 1120px); margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.page > *, .guide > *, .cols > * { min-width: 0; }
+.guide { grid-template-columns: minmax(0, 1fr); }
+a { color: var(--gold); text-underline-offset: 3px; }
+kbd { font-family: var(--digit); font-size: 12px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: rgba(255,255,255,.04); white-space: nowrap; }
+
+/* 标题栏 */
+.top { display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; }
+.top .name { font-family: var(--brush); font-size: 30px; line-height: 1; }
+.top .name .seal { color: var(--ember); }
+.top .ver { font-size: 12px; color: var(--mist); border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; }
+.top .sp { flex: 1; }
+.top .prev { font-size: 13px; }
+
+/* 工具栏 */
+.bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tb { font: 500 13px var(--sans); color: var(--paper); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.tb:hover { border-color: rgba(236,228,211,.4); }
+.tb kbd { font-size: 11px; padding: 0 4px; }
+.tb[disabled] { opacity: .4; cursor: default; }
+.status { color: var(--mist); font-size: 13px; flex: 1; min-width: 12em; }
+
+/* 擂台 */
+.stage-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; }
+canvas#view { width: 100%; height: 100%; display: block; border-radius: 6px; background: #1b1830; box-shadow: 0 20px 60px rgba(0,0,0,.5); touch-action: none; }
+.overlay {
+  position: absolute; inset: 0; border-radius: 6px; overflow: auto;
+  background: radial-gradient(ellipse at 50% 30%, rgba(26,27,41,.84), rgba(10,10,16,.95));
+  display: grid; place-items: center; padding: 3% 4%;
+}
+.ov-close { position: absolute; top: 10px; right: 10px; }
+.menu { width: 100%; max-width: 860px; display: grid; gap: clamp(10px, 2vw, 20px); }
+.brand { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; }
+.brand h1 { font-family: var(--brush); font-weight: 400; font-size: clamp(44px, 8vw, 92px); line-height: .9; margin: 0; letter-spacing: .04em; }
+.brand h1 .seal { color: var(--ember); }
+.brand p { margin: 0; color: var(--mist); font-size: clamp(13px, 1.5vw, 16px); max-width: 30em; }
+.levels { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.level { text-align: left; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--paper); border-radius: 6px; padding: 12px 12px 10px; display: grid; gap: 4px; font: inherit; }
+.level:hover { border-color: rgba(236,228,211,.35); }
+.level[aria-pressed="true"] { border-color: var(--jade); box-shadow: inset 0 0 0 1px var(--jade); background: #18262a; }
+.level b { font-family: var(--brush); font-weight: 400; font-size: clamp(24px, 3vw, 34px); line-height: 1; }
+.level .key { font-family: var(--digit); font-size: 11px; color: var(--mist); float: right; }
+.level .react { font-family: var(--digit); font-size: 12px; color: var(--gold); }
+.level .desc { font-size: 12px; color: var(--mist); line-height: 1.45; }
+.level .rec { font-family: var(--digit); font-size: 11px; color: var(--mist); }
+.level.god b { color: var(--ember); }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: inherit; }
+.btn { font: 500 15px var(--sans); border-radius: 6px; padding: 10px 20px; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--paper); display: inline-flex; gap: 8px; align-items: center; }
+.btn kbd { font-size: 11px; opacity: .8; }
+.btn.primary { background: var(--ember); border-color: var(--ember); color: #fff; font-weight: 700; padding-inline: 28px; letter-spacing: .08em; }
+.btn.primary kbd { border-color: rgba(255,255,255,.4); background: rgba(255,255,255,.12); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn:hover { border-color: rgba(236,228,211,.4); }
+.level:focus-visible, .btn:focus-visible, .tb:focus-visible, .tk:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.hint { color: var(--mist); font-size: 12px; margin: 0; }
+.center { text-align: center; display: grid; gap: 16px; justify-items: center; }
+.big { font-family: var(--brush); font-size: clamp(48px, 9vw, 104px); line-height: 1; margin: 0; font-weight: 400; }
+.big.win { color: var(--gold); } .big.lose { color: var(--jade); }
+.result-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: min(100%, 560px); }
+.result-stats div { border: 1px solid var(--line); border-radius: 6px; padding: 10px; display: grid; gap: 2px; }
+.result-stats b { font-family: var(--digit); font-size: 22px; font-variant-numeric: tabular-nums; }
+.result-stats span { font-size: 12px; color: var(--mist); }
+.habit { font-size: 15px; max-width: 34em; margin: 0; }
+.habit em { color: var(--gold); font-style: normal; }
+
+/* 说明浮层 */
+.help { width: 100%; max-width: 920px; display: grid; gap: 14px; }
+.help h2 { font-family: var(--brush); font-weight: 400; font-size: 40px; margin: 0; line-height: 1; }
+.help-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.help-grid section { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; min-width: 0; }
+.help-grid h3 { margin: 0 0 6px; font-size: 13px; color: var(--gold); letter-spacing: .06em; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 12.5px; margin: 0; }
+.kv dt { color: var(--mist); } .kv dd { margin: 0; }
+
+/* 触屏操控（手机/平板才显示） */
+.touch { display: none; grid-template-columns: 1fr 1.25fr; gap: 12px; user-select: none; -webkit-user-select: none; touch-action: none; }
+body.touchp .touch { display: grid; }
+.stick { position: relative; height: 170px; border: 1px dashed var(--line); border-radius: 10px; background: rgba(255,255,255,.02); touch-action: none; }
+.stick .base { position: absolute; width: 112px; height: 112px; left: calc(50% - 56px); top: calc(50% - 56px); border-radius: 50%; border: 2px solid rgba(236,228,211,.25); pointer-events: none; }
+.stick .knob { position: absolute; width: 50px; height: 50px; left: 29px; top: 29px; border-radius: 50%; background: rgba(236,228,211,.3); }
+.stick .lbl { position: absolute; left: 8px; top: 6px; font-size: 11px; color: var(--mist); pointer-events: none; }
+.keys { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.tk { font: 700 16px var(--sans); color: var(--paper); background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; min-height: 52px; display: grid; place-items: center; line-height: 1.1; touch-action: none; }
+.tk small { display: block; font-weight: 400; font-size: 11px; color: var(--mist); }
+.tk.on { background: var(--ember); border-color: var(--ember); }
+.tk.sp { color: var(--gold); }
+
+/* 常驻说明 */
+.guide { display: grid; gap: 14px; margin-top: 10px; }
+.guide > h2 { font-family: var(--brush); font-weight: 400; font-size: 40px; margin: 6px 0 0; line-height: 1; }
+.cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; min-width: 0; }
+.card h3 { margin: 0 0 8px; font-size: 15px; }
+.card p { margin: 0 0 8px; color: #d9d2c3; max-width: 65ch; }
+.card p:last-child { margin-bottom: 0; }
+.steps { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; }
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 6px 12px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--mist); font-weight: 500; font-size: 12px; white-space: nowrap; }
+td.num { font-family: var(--digit); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tag { display: inline-block; font-size: 11px; border-radius: 4px; padding: 0 6px; border: 1px solid var(--line); color: var(--mist); white-space: nowrap; }
+.tag.hi { color: var(--gold); border-color: rgba(239,194,90,.4); }
+.tag.lo { color: var(--jade); border-color: rgba(47,179,160,.45); }
+.tag.un { color: var(--ember); border-color: rgba(228,87,61,.45); }
+footer.credits { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 12px; color: var(--mist); border-top: 1px solid var(--line); padding-top: 12px; margin-top: 8px; }
+
+@media (max-width: 760px) {
+  .levels { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .help-grid, .cols { grid-template-columns: minmax(0, 1fr); }
+  .result-stats { grid-template-columns: minmax(0, 1fr); }
+  /* 手机上画布太矮，浮层改成全屏 */
+  .overlay { position: fixed; inset: 0; border-radius: 0; z-index: 20; padding: 56px 16px 24px; place-items: start center; }
+  .top .name { font-size: 24px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <span class="name">拆招<span class="seal">擂台</span></span>
+    <span class="ver">格斗大脑实验台 · 更强版本</span>
+    <span class="sp"></span>
+    <a class="prev" href="../play/index.html">← 上一版：神经网络 AI（格斗大脑实验台）</a>
+  </header>
+
+  <div class="bar" role="toolbar" aria-label="对局控制">
+    <button class="tb" id="tb-menu" type="button">主菜单</button>
+    <button class="tb" id="tb-pause" type="button" disabled>暂停 <kbd>Esc</kbd></button>
+    <button class="tb" id="tb-help" type="button">操作说明 <kbd>H</kbd></button>
+    <button class="tb" id="tb-mute" type="button">声音：开 <kbd>M</kbd></button>
+    <span class="status" id="status" aria-live="polite">选好难度后点“开战”。</span>
+  </div>
+
+  <div class="stage-wrap" id="wrap">
+    <canvas id="view" width="960" height="540" aria-label="对战画面"></canvas>
+
+    <div class="overlay" id="menu">
+      <div class="menu">
+        <div class="brand">
+          <h1>拆招<span class="seal">擂台</span></h1>
+          <p>对面的 AI 每一帧都在推演上百种走法，还会记住你这场的习惯。觉得自己打得过，就来试试。</p>
+        </div>
+        <div class="levels" role="group" aria-label="选择难度（← → 或 1–4）">
+          <button class="level" id="lv-easy" data-level="easy" aria-pressed="false" type="button"><b>入门</b><span class="react">反应 ≈ 370ms <span class="key">1</span></span><span class="desc">常犯错，不放大招。热身用。</span><span class="rec" data-rec="easy"></span></button>
+          <button class="level" id="lv-normal" data-level="normal" aria-pressed="false" type="button"><b>进阶</b><span class="react">反应 ≈ 250ms <span class="key">2</span></span><span class="desc">普通玩家的反应速度，偶尔失误。</span><span class="rec" data-rec="normal"></span></button>
+          <button class="level" id="lv-hard" data-level="hard" aria-pressed="true" type="button"><b>高手</b><span class="react">反应 ≈ 130ms <span class="key">3</span></span><span class="desc">职业选手级反应，基本不失误。</span><span class="rec" data-rec="hard"></span></button>
+          <button class="level god" id="lv-god" data-level="god" aria-pressed="false" type="button"><b>魔王</b><span class="react">反应 0ms <span class="key">4</span></span><span class="desc">看到你出招的第一帧就应对。</span><span class="rec" data-rec="god"></span></button>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="start" type="button">开 战 <kbd>Enter</kbd></button>
+          <button class="btn" id="demo" type="button">看 AI 互打 <kbd>V</kbd></button>
+          <button class="btn" id="menu-help" type="button">操作说明 <kbd>H</kbd></button>
+        </div>
+        <p class="hint">移动 <kbd>WASD</kbd>/方向键 · 轻 <kbd>J</kbd> 重 <kbd>K</kbd> 投 <kbd>L</kbd> · 波动 <kbd>U</kbd> 升龙 <kbd>I</kbd> 气功炮 <kbd>O</kbd> · 按住“后”防御 · 三局两胜</p>
+      </div>
+    </div>
+
+    <div class="overlay" id="pause" hidden>
+      <div class="center">
+        <p class="big">暂停</p>
+        <div class="actions" style="justify-content:center">
+          <button class="btn primary" id="resume" type="button">继续 <kbd>Esc</kbd></button>
+          <button class="btn" id="restart" type="button">重开这场 <kbd>R</kbd></button>
+          <button class="btn" id="pause-help" type="button">操作说明 <kbd>H</kbd></button>
+          <button class="btn" id="quit" type="button">回主菜单 <kbd>Q</kbd></button>
+        </div>
+        <p class="hint" id="pause-hint">切换到别的窗口时会自动暂停。</p>
+      </div>
+    </div>
+
+    <div class="overlay" id="help" hidden role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <button class="tb ov-close" id="help-close-x" type="button" aria-label="关闭说明">关闭 <kbd>Esc</kbd></button>
+      <div class="help">
+        <h2 id="help-title">怎么打</h2>
+        <div class="help-grid">
+          <section>
+            <h3>移动和防御</h3>
+            <dl class="kv">
+              <dt>走 / 跳 / 蹲</dt><dd><kbd>A</kbd><kbd>D</kbd> / <kbd>W</kbd> / <kbd>S</kbd>，方向键也行</dd>
+              <dt>站防</dt><dd>按住远离对手的方向</dd>
+              <dt>蹲防</dt><dd>按住“后 + 下”</dd>
+              <dt>注意</dt><dd>下劈、空中攻击要站防；扫腿、下段拳要蹲防；投技防不住</dd>
+            </dl>
+          </section>
+          <section>
+            <h3>出招</h3>
+            <dl class="kv">
+              <dt>轻拳 / 重踢</dt><dd><kbd>J</kbd> / <kbd>K</kbd>（或 <kbd>Z</kbd> / <kbd>X</kbd>）</dd>
+              <dt>投技</dt><dd>贴身按 <kbd>L</kbd>（或 <kbd>C</kbd>）</dd>
+              <dt>下劈</dt><dd>按住“前” + <kbd>K</kbd></dd>
+              <dt>蹲着出拳脚</dt><dd>按住“下” + <kbd>J</kbd> / <kbd>K</kbd></dd>
+              <dt>空中攻击</dt><dd>跳起后 <kbd>J</kbd> / <kbd>K</kbd></dd>
+            </dl>
+          </section>
+          <section>
+            <h3>必杀技（两种按法都行）</h3>
+            <dl class="kv">
+              <dt>波动</dt><dd><kbd>U</kbd>，或 ↓↘→ + 拳脚</dd>
+              <dt>升龙</dt><dd><kbd>I</kbd>，或 →↓↘ + 拳脚</dd>
+              <dt>重版本</dt><dd>按住 <kbd>Shift</kbd> 再按 <kbd>U</kbd> / <kbd>I</kbd></dd>
+              <dt>气功炮</dt><dd>气满后 <kbd>O</kbd>，或 ↓↘→ + <kbd>L</kbd></dd>
+            </dl>
+          </section>
+          <section>
+            <h3>菜单和返回</h3>
+            <dl class="kv">
+              <dt><kbd>Esc</kbd> / <kbd>空格</kbd></dt><dd>对战中暂停；暂停时继续；说明页里按 Esc 关闭；结算页按 Esc 回主菜单</dd>
+              <dt><kbd>R</kbd> / <kbd>Q</kbd></dt><dd>暂停时重开这场 / 回主菜单</dd>
+              <dt><kbd>H</kbd> / <kbd>M</kbd></dt><dd>随时看说明 / 开关声音</dd>
+            </dl>
+          </section>
+          <section>
+            <h3>手柄</h3>
+            <dl class="kv">
+              <dt>移动</dt><dd>十字键或左摇杆</dd>
+              <dt>轻 / 重 / 投</dt><dd>X(□) / Y(△) / A(×)</dd>
+              <dt>波动 / 升龙</dt><dd>LB / RB（按住 RT 放重版本）</dd>
+              <dt>气功炮 / 暂停</dt><dd>B(○) / Start</dd>
+            </dl>
+          </section>
+          <section>
+            <h3>手机</h3>
+            <p class="hint">画面下方左边是摇杆（按住拖动），右边是攻击键。横着拿手机画面更大。</p>
+          </section>
+        </div>
+        <div class="actions" style="justify-content:center">
+          <button class="btn primary" id="help-close" type="button">知道了 <kbd>Esc</kbd></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="result" hidden>
+      <div class="center">
+        <p class="big" id="result-title">胜</p>
+        <div class="result-stats">
+          <div><b id="st-dmg">0</b><span>你造成的伤害</span></div>
+          <div><b id="st-combo">0</b><span>最高连击</span></div>
+          <div><b id="st-rounds">0 : 0</b><span>回合比分</span></div>
+        </div>
+        <p class="habit" id="st-habit"></p>
+        <div class="actions" style="justify-content:center">
+          <button class="btn primary" id="again" type="button">再来一场 <kbd>Enter</kbd></button>
+          <button class="btn" id="back" type="button">换难度 <kbd>Esc</kbd></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="touch" id="touch" aria-label="触屏操控">
+    <div class="stick" id="stick"><span class="lbl">摇杆：按住拖动</span><div class="base"><div class="knob" id="knob"></div></div></div>
+    <div class="keys">
+      <button class="tk" data-k="a" type="button">轻<small>J</small></button>
+      <button class="tk" data-k="b" type="button">重<small>K</small></button>
+      <button class="tk" data-k="c" type="button">投<small>L</small></button>
+      <button class="tk sp" data-k="fb" type="button">波动<small>U</small></button>
+      <button class="tk sp" data-k="dp" type="button">升龙<small>I</small></button>
+      <button class="tk sp" data-k="su" type="button">气功炮<small>气满</small></button>
+    </div>
+  </div>
+
+  <section class="guide" aria-labelledby="guide-title">
+    <h2 id="guide-title">怎么玩</h2>
+    <div class="cols">
+      <div class="card">
+        <h3>三步上手</h3>
+        <ol class="steps">
+          <li>在擂台上的菜单里选难度。第一次建议“入门”或“进阶”，键盘 <kbd>1</kbd>–<kbd>4</kbd> 也能选。</li>
+          <li>点“开战”或按 <kbd>Enter</kbd>。三局两胜，每回合 60 秒，时间到按剩余血量判胜负。</li>
+          <li>用 <kbd>A</kbd><kbd>D</kbd> 走位，<kbd>J</kbd> <kbd>K</kbd> 出拳脚，<kbd>U</kbd> 放波动，<kbd>I</kbd> 放升龙。对手出招时按住“后”防御。</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h3>暂停、返回、重开</h3>
+        <ol class="steps">
+          <li>对战中按 <kbd>Esc</kbd> 或 <kbd>空格</kbd>（和上一版一样），或点上方“暂停”，可以继续、重开这场、看说明、回主菜单。</li>
+          <li>切到别的窗口或标签页时，游戏会自动暂停。</li>
+          <li>看 AI 互打时，按 <kbd>Esc</kbd> 再选“回主菜单”就退出观战。</li>
+          <li>打完一场：<kbd>Enter</kbd> 再来一场，<kbd>Esc</kbd> 回去换难度。</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>招式表</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>招式</th><th>键盘</th><th>起手</th><th>伤害</th><th>怎么防</th><th>用法</th></tr></thead>
+          <tbody id="move-table"></tbody>
+        </table>
+      </div>
+      <p class="hint" style="margin-top:8px">“起手”是从按键到能打中对手要几帧（60 帧 = 1 秒），越小越快。升龙起手几帧无敌，但收招破绽大，被防住会挨重罚。</p>
+    </div>
+
+    <div class="cols">
+      <div class="card">
+        <h3>四档 AI</h3>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>档位</th><th>反应</th><th>特点</th></tr></thead>
+            <tbody>
+              <tr><td>入门</td><td class="num">22 帧 ≈ 370ms</td><td>35% 的时候乱选动作，不放气功炮</td></tr>
+              <tr><td>进阶</td><td class="num">15 帧 ≈ 250ms</td><td>普通玩家的反应速度，偶尔失误</td></tr>
+              <tr><td>高手</td><td class="num">8 帧 ≈ 130ms</td><td>职业选手级反应，几乎不失误</td></tr>
+              <tr><td>魔王</td><td class="num">0 帧</td><td>你出招的第一帧就开始应对</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>AI 怎么想</h3>
+        <p>每次轮到它决定，它把自己的 20 多种动作和你可能的 10 多种应对配成对，在游戏引擎里各往前模拟约 0.7 秒，按伤害差和局面好坏打分，选平均分高、在你最可能的应对下也不吃亏的那一招。</p>
+        <p>它还会数你这场每种招用了几次、平时爱蹲防还是站防。你越爱用哪一招，它越提防哪一招。结算页会告诉你它记下了什么。</p>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div class="card">
+        <h3>和上一版有什么不同</h3>
+        <p><a href="../play/index.html">上一版（格斗大脑实验台）</a>的对手是强化学习训练出来的神经网络，带人类级的反应延迟和手速上限，旁边能看到它的“大脑”。</p>
+        <p>这一版不训练网络，对手每一帧现场推演；魔王档没有反应延迟，所以更难打。游戏是另写的一套，招式更多（下劈、扫腿、投技、气功炮），有防御高低、连击和反击判定。</p>
+      </div>
+      <div class="card">
+        <h3>测试结果</h3>
+        <p>不开画面让 AI 对打（每组 3 回合）：魔王对 6 种套路打法全胜（狂按轻拳、波动海、乱放升龙、跳入、乱按、只防不打），其中 4 种一滴血没掉；对完全不动的人 14 秒 KO。</p>
+        <p>档位顺序：魔王 6:0 高手，魔王 6:0 进阶，高手 6:0 进阶，进阶 5:1 入门。每次决策最多算约 12 毫秒，普通笔记本的浏览器就能跑。还没有大规模真人测试，欢迎来挑战。</p>
+      </div>
+    </div>
+
+    <footer class="credits">
+      <span>AI 教学演示案例 / AI Teaching Demos</span>
+      <span>Shuyao Gao（gaoshuyao.mk@gmail.com）· aSSIST University</span>
+      <span>代码 MIT · 文档 CC BY 4.0</span>
+      <span><a href="https://github.com/ShuyaoGao/fighting-brain-lab/tree/main/duel">源代码</a></span>
+    </footer>
+  </section>
+</div>
+
+<script>
+/*CORE*/
+</script>
+<script>
+/*UI*/
+</script>
+</body>
+</html>

@@ -1,0 +1,1868 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>拆招擂台</title>
+<meta name="description" content="格斗大脑实验台的更强版本：浏览器里的街机格斗游戏，对手是每帧推演上百种走法、会记住你习惯的搜索型 AI。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zhi+Mang+Xing&family=Noto+Sans+SC:wght@400;500;700&family=Oxanium:wght@500;700&display=swap">
+<style>
+/* 布局：上面一条标题栏 + 工具栏，中间 16:9 擂台（菜单/暂停/说明/结算盖在上面），下面是常驻的“怎么玩”说明。单一深色街机风格。 */
+:root {
+  --night: #11121c; --panel: #1a1b29; --panel-2: #222336;
+  --paper: #ece4d3; --mist: #9a97ab;
+  --ember: #e4573d; --jade: #2fb3a0; --gold: #efc25a;
+  --line: rgba(236, 228, 211, .14);
+  --brush: "Zhi Mang Xing", "STKaiti", "KaiTi", serif;
+  --sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --digit: "Oxanium", "Noto Sans SC", ui-monospace, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--night); color: var(--paper); font: 14px/1.6 var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px 28px;
+}
+.page { width: min(100%, 1120px); margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.page > *, .guide > *, .cols > * { min-width: 0; }
+.guide { grid-template-columns: minmax(0, 1fr); }
+a { color: var(--gold); text-underline-offset: 3px; }
+kbd { font-family: var(--digit); font-size: 12px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: rgba(255,255,255,.04); white-space: nowrap; }
+
+/* 标题栏 */
+.top { display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; }
+.top .name { font-family: var(--brush); font-size: 30px; line-height: 1; }
+.top .name .seal { color: var(--ember); }
+.top .ver { font-size: 12px; color: var(--mist); border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; }
+.top .sp { flex: 1; }
+.top .prev { font-size: 13px; }
+
+/* 工具栏 */
+.bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tb { font: 500 13px var(--sans); color: var(--paper); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.tb:hover { border-color: rgba(236,228,211,.4); }
+.tb kbd { font-size: 11px; padding: 0 4px; }
+.tb[disabled] { opacity: .4; cursor: default; }
+.status { color: var(--mist); font-size: 13px; flex: 1; min-width: 12em; }
+
+/* 擂台 */
+.stage-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; }
+canvas#view { width: 100%; height: 100%; display: block; border-radius: 6px; background: #1b1830; box-shadow: 0 20px 60px rgba(0,0,0,.5); touch-action: none; }
+.overlay {
+  position: absolute; inset: 0; border-radius: 6px; overflow: auto;
+  background: radial-gradient(ellipse at 50% 30%, rgba(26,27,41,.84), rgba(10,10,16,.95));
+  display: grid; place-items: center; padding: 3% 4%;
+}
+.ov-close { position: absolute; top: 10px; right: 10px; }
+.menu { width: 100%; max-width: 860px; display: grid; gap: clamp(10px, 2vw, 20px); }
+.brand { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; }
+.brand h1 { font-family: var(--brush); font-weight: 400; font-size: clamp(44px, 8vw, 92px); line-height: .9; margin: 0; letter-spacing: .04em; }
+.brand h1 .seal { color: var(--ember); }
+.brand p { margin: 0; color: var(--mist); font-size: clamp(13px, 1.5vw, 16px); max-width: 30em; }
+.levels { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.level { text-align: left; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--paper); border-radius: 6px; padding: 12px 12px 10px; display: grid; gap: 4px; font: inherit; }
+.level:hover { border-color: rgba(236,228,211,.35); }
+.level[aria-pressed="true"] { border-color: var(--jade); box-shadow: inset 0 0 0 1px var(--jade); background: #18262a; }
+.level b { font-family: var(--brush); font-weight: 400; font-size: clamp(24px, 3vw, 34px); line-height: 1; }
+.level .key { font-family: var(--digit); font-size: 11px; color: var(--mist); float: right; }
+.level .react { font-family: var(--digit); font-size: 12px; color: var(--gold); }
+.level .desc { font-size: 12px; color: var(--mist); line-height: 1.45; }
+.level .rec { font-family: var(--digit); font-size: 11px; color: var(--mist); }
+.level.god b { color: var(--ember); }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: inherit; }
+.btn { font: 500 15px var(--sans); border-radius: 6px; padding: 10px 20px; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--paper); display: inline-flex; gap: 8px; align-items: center; }
+.btn kbd { font-size: 11px; opacity: .8; }
+.btn.primary { background: var(--ember); border-color: var(--ember); color: #fff; font-weight: 700; padding-inline: 28px; letter-spacing: .08em; }
+.btn.primary kbd { border-color: rgba(255,255,255,.4); background: rgba(255,255,255,.12); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn:hover { border-color: rgba(236,228,211,.4); }
+.level:focus-visible, .btn:focus-visible, .tb:focus-visible, .tk:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.hint { color: var(--mist); font-size: 12px; margin: 0; }
+.center { text-align: center; display: grid; gap: 16px; justify-items: center; }
+.big { font-family: var(--brush); font-size: clamp(48px, 9vw, 104px); line-height: 1; margin: 0; font-weight: 400; }
+.big.win { color: var(--gold); } .big.lose { color: var(--jade); }
+.result-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: min(100%, 560px); }
+.result-stats div { border: 1px solid var(--line); border-radius: 6px; padding: 10px; display: grid; gap: 2px; }
+.result-stats b { font-family: var(--digit); font-size: 22px; font-variant-numeric: tabular-nums; }
+.result-stats span { font-size: 12px; color: var(--mist); }
+.habit { font-size: 15px; max-width: 34em; margin: 0; }
+.habit em { color: var(--gold); font-style: normal; }
+
+/* 说明浮层 */
+.help { width: 100%; max-width: 920px; display: grid; gap: 14px; }
+.help h2 { font-family: var(--brush); font-weight: 400; font-size: 40px; margin: 0; line-height: 1; }
+.help-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.help-grid section { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; min-width: 0; }
+.help-grid h3 { margin: 0 0 6px; font-size: 13px; color: var(--gold); letter-spacing: .06em; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 12.5px; margin: 0; }
+.kv dt { color: var(--mist); } .kv dd { margin: 0; }
+
+/* 触屏操控（手机/平板才显示） */
+.touch { display: none; grid-template-columns: 1fr 1.25fr; gap: 12px; user-select: none; -webkit-user-select: none; touch-action: none; }
+body.touchp .touch { display: grid; }
+.stick { position: relative; height: 170px; border: 1px dashed var(--line); border-radius: 10px; background: rgba(255,255,255,.02); touch-action: none; }
+.stick .base { position: absolute; width: 112px; height: 112px; left: calc(50% - 56px); top: calc(50% - 56px); border-radius: 50%; border: 2px solid rgba(236,228,211,.25); pointer-events: none; }
+.stick .knob { position: absolute; width: 50px; height: 50px; left: 29px; top: 29px; border-radius: 50%; background: rgba(236,228,211,.3); }
+.stick .lbl { position: absolute; left: 8px; top: 6px; font-size: 11px; color: var(--mist); pointer-events: none; }
+.keys { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.tk { font: 700 16px var(--sans); color: var(--paper); background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; min-height: 52px; display: grid; place-items: center; line-height: 1.1; touch-action: none; }
+.tk small { display: block; font-weight: 400; font-size: 11px; color: var(--mist); }
+.tk.on { background: var(--ember); border-color: var(--ember); }
+.tk.sp { color: var(--gold); }
+
+/* 常驻说明 */
+.guide { display: grid; gap: 14px; margin-top: 10px; }
+.guide > h2 { font-family: var(--brush); font-weight: 400; font-size: 40px; margin: 6px 0 0; line-height: 1; }
+.cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; min-width: 0; }
+.card h3 { margin: 0 0 8px; font-size: 15px; }
+.card p { margin: 0 0 8px; color: #d9d2c3; max-width: 65ch; }
+.card p:last-child { margin-bottom: 0; }
+.steps { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; }
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 6px 12px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--mist); font-weight: 500; font-size: 12px; white-space: nowrap; }
+td.num { font-family: var(--digit); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tag { display: inline-block; font-size: 11px; border-radius: 4px; padding: 0 6px; border: 1px solid var(--line); color: var(--mist); white-space: nowrap; }
+.tag.hi { color: var(--gold); border-color: rgba(239,194,90,.4); }
+.tag.lo { color: var(--jade); border-color: rgba(47,179,160,.45); }
+.tag.un { color: var(--ember); border-color: rgba(228,87,61,.45); }
+footer.credits { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 12px; color: var(--mist); border-top: 1px solid var(--line); padding-top: 12px; margin-top: 8px; }
+
+@media (max-width: 760px) {
+  .levels { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .help-grid, .cols { grid-template-columns: minmax(0, 1fr); }
+  .result-stats { grid-template-columns: minmax(0, 1fr); }
+  /* 手机上画布太矮，浮层改成全屏 */
+  .overlay { position: fixed; inset: 0; border-radius: 0; z-index: 20; padding: 56px 16px 24px; place-items: start center; }
+  .top .name { font-size: 24px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <span class="name">拆招<span class="seal">擂台</span></span>
+    <span class="ver">格斗大脑实验台 · 更强版本</span>
+    <span class="sp"></span>
+    <a class="prev" href="../play/index.html">← 上一版：神经网络 AI（格斗大脑实验台）</a>
+  </header>
+
+  <div class="bar" role="toolbar" aria-label="对局控制">
+    <button class="tb" id="tb-menu" type="button">主菜单</button>
+    <button class="tb" id="tb-pause" type="button" disabled>暂停 <kbd>Esc</kbd></button>
+    <button class="tb" id="tb-help" type="button">操作说明 <kbd>H</kbd></button>
+    <button class="tb" id="tb-mute" type="button">声音：开 <kbd>M</kbd></button>
+    <span class="status" id="status" aria-live="polite">选好难度后点“开战”。</span>
+  </div>
+
+  <div class="stage-wrap" id="wrap">
+    <canvas id="view" width="960" height="540" aria-label="对战画面"></canvas>
+
+    <div class="overlay" id="menu">
+      <div class="menu">
+        <div class="brand">
+          <h1>拆招<span class="seal">擂台</span></h1>
+          <p>对面的 AI 每一帧都在推演上百种走法，还会记住你这场的习惯。觉得自己打得过，就来试试。</p>
+        </div>
+        <div class="levels" role="group" aria-label="选择难度（← → 或 1–4）">
+          <button class="level" id="lv-easy" data-level="easy" aria-pressed="false" type="button"><b>入门</b><span class="react">反应 ≈ 370ms <span class="key">1</span></span><span class="desc">常犯错，不放大招。热身用。</span><span class="rec" data-rec="easy"></span></button>
+          <button class="level" id="lv-normal" data-level="normal" aria-pressed="false" type="button"><b>进阶</b><span class="react">反应 ≈ 250ms <span class="key">2</span></span><span class="desc">普通玩家的反应速度，偶尔失误。</span><span class="rec" data-rec="normal"></span></button>
+          <button class="level" id="lv-hard" data-level="hard" aria-pressed="true" type="button"><b>高手</b><span class="react">反应 ≈ 130ms <span class="key">3</span></span><span class="desc">职业选手级反应，基本不失误。</span><span class="rec" data-rec="hard"></span></button>
+          <button class="level god" id="lv-god" data-level="god" aria-pressed="false" type="button"><b>魔王</b><span class="react">反应 0ms <span class="key">4</span></span><span class="desc">看到你出招的第一帧就应对。</span><span class="rec" data-rec="god"></span></button>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="start" type="button">开 战 <kbd>Enter</kbd></button>
+          <button class="btn" id="demo" type="button">看 AI 互打 <kbd>V</kbd></button>
+          <button class="btn" id="menu-help" type="button">操作说明 <kbd>H</kbd></button>
+        </div>
+        <p class="hint">移动 <kbd>WASD</kbd>/方向键 · 轻 <kbd>J</kbd> 重 <kbd>K</kbd> 投 <kbd>L</kbd> · 波动 <kbd>U</kbd> 升龙 <kbd>I</kbd> 气功炮 <kbd>O</kbd> · 按住“后”防御 · 三局两胜</p>
+      </div>
+    </div>
+
+    <div class="overlay" id="pause" hidden>
+      <div class="center">
+        <p class="big">暂停</p>
+        <div class="actions" style="justify-content:center">
+          <button class="btn primary" id="resume" type="button">继续 <kbd>Esc</kbd></button>
+          <button class="btn" id="restart" type="button">重开这场 <kbd>R</kbd></button>
+          <button class="btn" id="pause-help" type="button">操作说明 <kbd>H</kbd></button>
+          <button class="btn" id="quit" type="button">回主菜单 <kbd>Q</kbd></button>
+        </div>
+        <p class="hint" id="pause-hint">切换到别的窗口时会自动暂停。</p>
+      </div>
+    </div>
+
+    <div class="overlay" id="help" hidden role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <button class="tb ov-close" id="help-close-x" type="button" aria-label="关闭说明">关闭 <kbd>Esc</kbd></button>
+      <div class="help">
+        <h2 id="help-title">怎么打</h2>
+        <div class="help-grid">
+          <section>
+            <h3>移动和防御</h3>
+            <dl class="kv">
+              <dt>走 / 跳 / 蹲</dt><dd><kbd>A</kbd><kbd>D</kbd> / <kbd>W</kbd> / <kbd>S</kbd>，方向键也行</dd>
+              <dt>站防</dt><dd>按住远离对手的方向</dd>
+              <dt>蹲防</dt><dd>按住“后 + 下”</dd>
+              <dt>注意</dt><dd>下劈、空中攻击要站防；扫腿、下段拳要蹲防；投技防不住</dd>
+            </dl>
+          </section>
+          <section>
+            <h3>出招</h3>
+            <dl class="kv">
+              <dt>轻拳 / 重踢</dt><dd><kbd>J</kbd> / <kbd>K</kbd>（或 <kbd>Z</kbd> / <kbd>X</kbd>）</dd>
+              <dt>投技</dt><dd>贴身按 <kbd>L</kbd>（或 <kbd>C</kbd>）</dd>
+              <dt>下劈</dt><dd>按住“前” + <kbd>K</kbd></dd>
+              <dt>蹲着出拳脚</dt><dd>按住“下” + <kbd>J</kbd> / <kbd>K</kbd></dd>
+              <dt>空中攻击</dt><dd>跳起后 <kbd>J</kbd> / <kbd>K</kbd></dd>
+            </dl>
+          </section>
+          <section>
+            <h3>必杀技（两种按法都行）</h3>
+            <dl class="kv">
+              <dt>波动</dt><dd><kbd>U</kbd>，或 ↓↘→ + 拳脚</dd>
+              <dt>升龙</dt><dd><kbd>I</kbd>，或 →↓↘ + 拳脚</dd>
+              <dt>重版本</dt><dd>按住 <kbd>Shift</kbd> 再按 <kbd>U</kbd> / <kbd>I</kbd></dd>
+              <dt>气功炮</dt><dd>气满后 <kbd>O</kbd>，或 ↓↘→ + <kbd>L</kbd></dd>
+            </dl>
+          </section>
+          <section>
+            <h3>菜单和返回</h3>
+            <dl class="kv">
+              <dt><kbd>Esc</kbd> / <kbd>空格</kbd></dt><dd>对战中暂停；暂停时继续；说明页里按 Esc 关闭；结算页按 Esc 回主菜单</dd>
+              <dt><kbd>R</kbd> / <kbd>Q</kbd></dt><dd>暂停时重开这场 / 回主菜单</dd>
+              <dt><kbd>H</kbd> / <kbd>M</kbd></dt><dd>随时看说明 / 开关声音</dd>
+            </dl>
+          </section>
+          <section>
+            <h3>手柄</h3>
+            <dl class="kv">
+              <dt>移动</dt><dd>十字键或左摇杆</dd>
+              <dt>轻 / 重 / 投</dt><dd>X(□) / Y(△) / A(×)</dd>
+              <dt>波动 / 升龙</dt><dd>LB / RB（按住 RT 放重版本）</dd>
+              <dt>气功炮 / 暂停</dt><dd>B(○) / Start</dd>
+            </dl>
+          </section>
+          <section>
+            <h3>手机</h3>
+            <p class="hint">画面下方左边是摇杆（按住拖动），右边是攻击键。横着拿手机画面更大。</p>
+          </section>
+        </div>
+        <div class="actions" style="justify-content:center">
+          <button class="btn primary" id="help-close" type="button">知道了 <kbd>Esc</kbd></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="result" hidden>
+      <div class="center">
+        <p class="big" id="result-title">胜</p>
+        <div class="result-stats">
+          <div><b id="st-dmg">0</b><span>你造成的伤害</span></div>
+          <div><b id="st-combo">0</b><span>最高连击</span></div>
+          <div><b id="st-rounds">0 : 0</b><span>回合比分</span></div>
+        </div>
+        <p class="habit" id="st-habit"></p>
+        <div class="actions" style="justify-content:center">
+          <button class="btn primary" id="again" type="button">再来一场 <kbd>Enter</kbd></button>
+          <button class="btn" id="back" type="button">换难度 <kbd>Esc</kbd></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="touch" id="touch" aria-label="触屏操控">
+    <div class="stick" id="stick"><span class="lbl">摇杆：按住拖动</span><div class="base"><div class="knob" id="knob"></div></div></div>
+    <div class="keys">
+      <button class="tk" data-k="a" type="button">轻<small>J</small></button>
+      <button class="tk" data-k="b" type="button">重<small>K</small></button>
+      <button class="tk" data-k="c" type="button">投<small>L</small></button>
+      <button class="tk sp" data-k="fb" type="button">波动<small>U</small></button>
+      <button class="tk sp" data-k="dp" type="button">升龙<small>I</small></button>
+      <button class="tk sp" data-k="su" type="button">气功炮<small>气满</small></button>
+    </div>
+  </div>
+
+  <section class="guide" aria-labelledby="guide-title">
+    <h2 id="guide-title">怎么玩</h2>
+    <div class="cols">
+      <div class="card">
+        <h3>三步上手</h3>
+        <ol class="steps">
+          <li>在擂台上的菜单里选难度。第一次建议“入门”或“进阶”，键盘 <kbd>1</kbd>–<kbd>4</kbd> 也能选。</li>
+          <li>点“开战”或按 <kbd>Enter</kbd>。三局两胜，每回合 60 秒，时间到按剩余血量判胜负。</li>
+          <li>用 <kbd>A</kbd><kbd>D</kbd> 走位，<kbd>J</kbd> <kbd>K</kbd> 出拳脚，<kbd>U</kbd> 放波动，<kbd>I</kbd> 放升龙。对手出招时按住“后”防御。</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h3>暂停、返回、重开</h3>
+        <ol class="steps">
+          <li>对战中按 <kbd>Esc</kbd> 或 <kbd>空格</kbd>（和上一版一样），或点上方“暂停”，可以继续、重开这场、看说明、回主菜单。</li>
+          <li>切到别的窗口或标签页时，游戏会自动暂停。</li>
+          <li>看 AI 互打时，按 <kbd>Esc</kbd> 再选“回主菜单”就退出观战。</li>
+          <li>打完一场：<kbd>Enter</kbd> 再来一场，<kbd>Esc</kbd> 回去换难度。</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>招式表</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>招式</th><th>键盘</th><th>起手</th><th>伤害</th><th>怎么防</th><th>用法</th></tr></thead>
+          <tbody id="move-table"></tbody>
+        </table>
+      </div>
+      <p class="hint" style="margin-top:8px">“起手”是从按键到能打中对手要几帧（60 帧 = 1 秒），越小越快。升龙起手几帧无敌，但收招破绽大，被防住会挨重罚。</p>
+    </div>
+
+    <div class="cols">
+      <div class="card">
+        <h3>四档 AI</h3>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>档位</th><th>反应</th><th>特点</th></tr></thead>
+            <tbody>
+              <tr><td>入门</td><td class="num">22 帧 ≈ 370ms</td><td>35% 的时候乱选动作，不放气功炮</td></tr>
+              <tr><td>进阶</td><td class="num">15 帧 ≈ 250ms</td><td>普通玩家的反应速度，偶尔失误</td></tr>
+              <tr><td>高手</td><td class="num">8 帧 ≈ 130ms</td><td>职业选手级反应，几乎不失误</td></tr>
+              <tr><td>魔王</td><td class="num">0 帧</td><td>你出招的第一帧就开始应对</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>AI 怎么想</h3>
+        <p>每次轮到它决定，它把自己的 20 多种动作和你可能的 10 多种应对配成对，在游戏引擎里各往前模拟约 0.7 秒，按伤害差和局面好坏打分，选平均分高、在你最可能的应对下也不吃亏的那一招。</p>
+        <p>它还会数你这场每种招用了几次、平时爱蹲防还是站防。你越爱用哪一招，它越提防哪一招。结算页会告诉你它记下了什么。</p>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div class="card">
+        <h3>和上一版有什么不同</h3>
+        <p><a href="../play/index.html">上一版（格斗大脑实验台）</a>的对手是强化学习训练出来的神经网络，带人类级的反应延迟和手速上限，旁边能看到它的“大脑”。</p>
+        <p>这一版不训练网络，对手每一帧现场推演；魔王档没有反应延迟，所以更难打。游戏是另写的一套，招式更多（下劈、扫腿、投技、气功炮），有防御高低、连击和反击判定。</p>
+      </div>
+      <div class="card">
+        <h3>测试结果</h3>
+        <p>不开画面让 AI 对打（每组 3 回合）：魔王对 6 种套路打法全胜（狂按轻拳、波动海、乱放升龙、跳入、乱按、只防不打），其中 4 种一滴血没掉；对完全不动的人 14 秒 KO。</p>
+        <p>档位顺序：魔王 6:0 高手，魔王 6:0 进阶，高手 6:0 进阶，进阶 5:1 入门。每次决策最多算约 12 毫秒，普通笔记本的浏览器就能跑。还没有大规模真人测试，欢迎来挑战。</p>
+      </div>
+    </div>
+
+    <footer class="credits">
+      <span>AI 教学演示案例 / AI Teaching Demos</span>
+      <span>Shuyao Gao（gaoshuyao.mk@gmail.com）· aSSIST University</span>
+      <span>代码 MIT · 文档 CC BY 4.0</span>
+      <span><a href="https://github.com/ShuyaoGao/fighting-brain-lab/tree/main/duel">源代码</a></span>
+    </footer>
+  </section>
+</div>
+
+<script>
+/* 拆招擂台 · 引擎 + AI
+ * 纯逻辑、确定性、固定 60 帧/秒。浏览器和 node 通用（node 里用来跑 AI 对打测试）。
+ * 坐标：x 向右，y 向上（0 = 地面）。intent 里的 h 是相对方向：1 = 朝对手，-1 = 背对手（按住即防御）。
+ */
+(function (root) {
+  'use strict';
+
+  const WALL_L = 40, WALL_R = 920, GRAV = 0.8;
+  const JUMP_V = 15, JUMP_VX = 4.2, WALK_F = 3.4, WALK_B = 2.7;
+  const MAX_HP = 1000, MAX_METER = 100, ROUND_FRAMES = 60 * 60;
+  const DOWN_FRAMES = 40, RISE_FRAMES = 14, BODY_W = 56;
+
+  // s 起手帧 / a 持续帧 / r 收招帧；hb 判定框（相对脚底中心，朝右时）；guard: high 须站防 / low 须蹲防 / mid 都能防
+  const MOVES = {
+    jab:   { name: '轻拳', s: 4, a: 3, r: 8,  dmg: 30, hb: { x: 18, w: 64, y: 96, h: 28 }, hs: 15, bs: 11, kb: 3.2, guard: 'mid', cancel: true, meter: 4, stop: 6 },
+    heavy: { name: '重踢', s: 8, a: 4, r: 17, dmg: 72, hb: { x: 20, w: 92, y: 74, h: 40 }, hs: 20, bs: 15, kb: 5.5, guard: 'mid', cancel: true, meter: 8, stop: 9 },
+    cA:    { name: '下段拳', s: 5, a: 3, r: 9, dmg: 26, hb: { x: 18, w: 68, y: 22, h: 30 }, hs: 14, bs: 10, kb: 2.6, guard: 'low', cancel: true, crouch: true, meter: 4, stop: 6 },
+    cB:    { name: '扫腿', s: 9, a: 4, r: 22, dmg: 58, hb: { x: 18, w: 100, y: 0, h: 22 }, hs: 0, bs: 13, kb: 4, guard: 'low', kd: true, crouch: true, meter: 8, stop: 9 },
+    over:  { name: '下劈', s: 19, a: 3, r: 14, dmg: 62, hb: { x: 14, w: 78, y: 80, h: 80 }, hs: 18, bs: 12, kb: 4.5, guard: 'high', meter: 8, stop: 10 },
+    jA:    { name: '空中拳', s: 4, a: 8, r: 6, dmg: 42, hb: { x: 8, w: 62, y: 18, h: 52 }, hs: 16, bs: 12, kb: 3, guard: 'high', air: true, meter: 5, stop: 7 },
+    jB:    { name: '空中踢', s: 7, a: 6, r: 10, dmg: 66, hb: { x: 14, w: 78, y: -4, h: 50 }, hs: 19, bs: 13, kb: 4, guard: 'high', air: true, meter: 7, stop: 9 },
+    throw: { name: '投技', s: 4, a: 2, r: 22, dmg: 95, range: 62, throw: true, meter: 10, stop: 12 },
+    fbA:   { name: '慢波', s: 13, a: 1, r: 26, proj: { vx: 6, dmg: 52, hs: 18, bs: 14, kb: 4, chip: 8 }, meter: 6 },
+    fbB:   { name: '快波', s: 13, a: 1, r: 30, proj: { vx: 10, dmg: 52, hs: 18, bs: 14, kb: 4, chip: 8 }, meter: 6 },
+    dpA:   { name: '升龙', s: 3, a: 10, r: 26, dmg: 85, hb: { x: 0, w: 58, y: 40, h: 140 }, hs: 0, bs: 14, kb: 3, guard: 'mid', kd: true, launch: 11, inv: 8, rise: 11, rvx: 1.6, meter: 10, stop: 10, chip: 10 },
+    dpB:   { name: '大升龙', s: 3, a: 12, r: 32, dmg: 110, hb: { x: 0, w: 60, y: 40, h: 150 }, hs: 0, bs: 16, kb: 3, guard: 'mid', kd: true, launch: 12, inv: 11, rise: 13, rvx: 2.4, meter: 10, stop: 12, chip: 14 },
+    super: { name: '气功炮', s: 8, a: 1, r: 34, cost: 100, inv: 14, proj: { vx: 13, dmg: 240, hs: 0, bs: 18, kb: 6, chip: 45, super: true, kd: true }, stop: 18 },
+  };
+  const SPECIALS = { fbA: 1, fbB: 1, dpA: 1, dpB: 1, super: 1 };
+
+  // ---------------- 状态 ----------------
+  function newFighter(x, face) {
+    return {
+      x, y: 0, vx: 0, vy: 0, face, hp: MAX_HP, meter: 0,
+      st: 'stand', t: 0, mv: '', mt: 0, hit: false, conn: false, connT: 0,
+      hs: 0, combo: 0, juggle: 0, cr: false, airUsed: false,
+      hbk: false, wantCr: false, flash: 0,
+    };
+  }
+
+  function newGame(opts) {
+    opts = opts || {};
+    return {
+      t: 0, roundT: ROUND_FRAMES, hitstop: 0, koT: 0, over: false, winner: -1,
+      f: [newFighter(330, 1), newFighter(630, -1)],
+      projs: [], pid: 0,
+      events: opts.silent ? null : [],
+    };
+  }
+
+  function cloneGame(g) {
+    const projs = new Array(g.projs.length);
+    for (let i = 0; i < g.projs.length; i++) projs[i] = Object.assign({}, g.projs[i]);
+    return {
+      t: g.t, roundT: g.roundT, hitstop: g.hitstop, koT: g.koT, over: g.over, winner: g.winner,
+      f: [Object.assign({}, g.f[0]), Object.assign({}, g.f[1])],
+      projs, pid: g.pid, events: null,
+    };
+  }
+
+  function emit(g, e) { if (g.events) g.events.push(e); }
+
+  // ---------------- 判定框 ----------------
+  function worldBox(f, b) {
+    const x0 = f.face === 1 ? f.x + b.x : f.x - b.x - b.w;
+    return { x0, x1: x0 + b.w, y0: f.y + b.y, y1: f.y + b.y + b.h };
+  }
+  function overlap(a, b) { return a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1; }
+
+  function isCrouching(f) {
+    if (f.y > 0) return false;
+    if (f.st === 'crouch') return true;
+    if (f.st === 'atk') return !!MOVES[f.mv].crouch;
+    if (f.st === 'block' || f.st === 'hit') return f.cr;
+    return false;
+  }
+
+  function bodyBox(f) {
+    if (f.st === 'down' || f.st === 'rise' || f.st === 'ko') return null;
+    const h = f.y > 0 ? 118 : isCrouching(f) ? 92 : 150;
+    return { x0: f.x - BODY_W / 2, x1: f.x + BODY_W / 2, y0: f.y, y1: f.y + h };
+  }
+
+  // 出招时伸出的手脚也能被打（收招前半段）
+  function limbBox(f) {
+    if (f.st !== 'atk') return null;
+    const m = MOVES[f.mv];
+    if (!m.hb || f.mt < m.s) return null;
+    if (f.mt > m.s + m.a + (m.r >> 1)) return null;
+    const b = worldBox(f, m.hb);
+    const pad = 6;
+    return { x0: b.x0 + pad, x1: b.x1 - pad, y0: b.y0 + 2, y1: b.y1 - 2 };
+  }
+
+  function invulnerable(f) {
+    if (f.st === 'down' || f.st === 'rise' || f.st === 'ko') return true;
+    if (f.st === 'airhit' && f.juggle >= 3) return true;
+    if (f.st === 'atk') { const m = MOVES[f.mv]; if (m.inv && f.mt <= m.inv) return true; }
+    return false;
+  }
+
+  function hurtOverlap(box, d) {
+    const b = bodyBox(d);
+    if (b && overlap(box, b)) return true;
+    const l = limbBox(d);
+    return !!(l && overlap(box, l));
+  }
+
+  // ---------------- 流程 ----------------
+  function actionable(f) { return f.st === 'stand' || f.st === 'crouch'; }
+
+  function canCancel(f, id) {
+    if (f.st !== 'atk' || !SPECIALS[id]) return false;
+    const m = MOVES[f.mv];
+    return !!(m.cancel && f.conn && f.mt - f.connT <= 12);
+  }
+
+  function hasProj(g, i) {
+    for (let k = 0; k < g.projs.length; k++) if (g.projs[k].owner === i) return true;
+    return false;
+  }
+
+  function moveAllowed(g, i, id) {
+    const f = g.f[i], m = MOVES[id];
+    if (!m) return false;
+    if (m.air ? !(f.st === 'air' && !f.airUsed) : f.y > 0) return false;
+    if (m.cost && f.meter < m.cost) return false;
+    if (m.proj && hasProj(g, i)) return false;
+    return true;
+  }
+
+  function startMove(g, i, id) {
+    if (!moveAllowed(g, i, id)) return false;
+    const f = g.f[i], m = MOVES[id];
+    f.st = 'atk'; f.mv = id; f.mt = 0; f.t = 0; f.hit = false; f.conn = false; f.connT = 0;
+    if (!m.air) f.vx = 0; else f.airUsed = true;
+    if (m.cost) f.meter -= m.cost;
+    if (id === 'super') emit(g, { type: 'super', who: i });
+    return true;
+  }
+
+  function toNeutral(f) {
+    f.st = f.wantCr ? 'crouch' : 'stand';
+    f.mv = ''; f.t = 0; f.vx = 0; f.hs = 0; f.combo = 0; f.juggle = 0; f.airUsed = false;
+  }
+
+  function think(g, i, it) {
+    const f = g.f[i], o = g.f[1 - i];
+    f.hbk = it.h === -1;
+    f.wantCr = it.v === -1;
+    if (f.st === 'ko' || g.koT) return;
+    if (f.y <= 0 && (f.st === 'stand' || f.st === 'crouch')) f.face = o.x >= f.x ? 1 : -1;
+
+    if (it.atk && canCancel(f, it.atk)) { startMove(g, i, it.atk); return; }
+    if (actionable(f)) {
+      if (it.atk && startMove(g, i, it.atk)) return;
+      if (it.v === 1) {
+        f.st = 'air'; f.t = 0; f.vy = JUMP_V; f.vx = it.h * JUMP_VX * f.face; f.y = 0.01;
+        emit(g, { type: 'jump', who: i });
+        return;
+      }
+      if (it.v === -1) { if (f.st !== 'crouch') { f.st = 'crouch'; f.t = 0; } f.vx = 0; return; }
+      if (f.st !== 'stand') { f.st = 'stand'; f.t = 0; }
+      f.vx = it.h === 1 ? WALK_F * f.face : it.h === -1 ? -WALK_B * f.face : 0;
+      return;
+    }
+    if (f.st === 'air' && it.atk && MOVES[it.atk] && MOVES[it.atk].air) startMove(g, i, it.atk);
+  }
+
+  function spawnProj(g, i, m) {
+    const f = g.f[i], p = m.proj;
+    g.projs.push({
+      id: ++g.pid, owner: i, x: f.x + f.face * 58, y: p.super ? 70 : 84, vx: p.vx * f.face,
+      w: p.super ? 70 : 38, h: p.super ? 56 : 30, dmg: p.dmg, hs: p.hs, bs: p.bs, kb: p.kb, chip: p.chip,
+      super: !!p.super, kd: !!p.kd, life: 200,
+    });
+    emit(g, { type: 'proj', who: i, super: !!p.super });
+  }
+
+  function land(g, f, i) {
+    f.y = 0; f.vy = 0;
+    if (f.st === 'air') { toNeutral(f); emit(g, { type: 'land', who: i }); }
+    else if (f.st === 'atk') {
+      if (MOVES[f.mv].air) { toNeutral(f); emit(g, { type: 'land', who: i }); }
+      else f.vx = 0;
+    } else if (f.st === 'airhit') {
+      f.vx = 0;
+      if (f.hp <= 0) { f.st = 'ko'; f.t = 0; }
+      else { f.st = 'down'; f.hs = DOWN_FRAMES; f.t = 0; }
+      emit(g, { type: 'fall', who: i, x: f.x });
+    }
+  }
+
+  function advance(g, i) {
+    const f = g.f[i];
+    f.t++;
+    if (f.flash > 0) f.flash--;
+    switch (f.st) {
+      case 'atk': {
+        f.mt++;
+        const m = MOVES[f.mv];
+        if (m.rise && f.mt === m.s) { f.vy = m.rise; f.vx = m.rvx * f.face; f.y = Math.max(f.y, 0.01); }
+        if (m.proj && f.mt === m.s) spawnProj(g, i, m);
+        if (f.mt >= m.s + m.a + m.r && f.y <= 0) toNeutral(f);
+        break;
+      }
+      case 'hit': case 'block':
+        f.hs--; f.vx *= 0.82;
+        if (f.hs <= 0) toNeutral(f);
+        break;
+      case 'down':
+        if (--f.hs <= 0) { f.st = 'rise'; f.hs = RISE_FRAMES; f.t = 0; }
+        break;
+      case 'rise':
+        if (--f.hs <= 0) toNeutral(f);
+        break;
+    }
+    if (f.y > 0 || f.vy > 0) {
+      f.x += f.vx; f.y += f.vy; f.vy -= GRAV;
+      if (f.y <= 0) land(g, f, i);
+    } else {
+      f.x += f.vx;
+    }
+  }
+
+  function separate(g) {
+    const a = g.f[0], b = g.f[1];
+    for (const f of g.f) {
+      if (f.x < WALL_L) f.x = WALL_L;
+      if (f.x > WALL_R) f.x = WALL_R;
+    }
+    if (a.st === 'ko' || b.st === 'ko' || a.st === 'down' || b.st === 'down') return;
+    const ha = a.y > 0 ? 118 : 150, hb = b.y > 0 ? 118 : 150;
+    if (a.y >= b.y + hb || b.y >= a.y + ha) return;
+    const dx = b.x - a.x, ad = Math.abs(dx);
+    if (ad >= BODY_W) return;
+    const dir = dx !== 0 ? Math.sign(dx) : (a.face === 1 ? 1 : -1);
+    const push = (BODY_W - ad) / 2;
+    a.x -= dir * push; b.x += dir * push;
+    if (a.x < WALL_L) { b.x += WALL_L - a.x; a.x = WALL_L; }
+    if (a.x > WALL_R) { b.x -= a.x - WALL_R; a.x = WALL_R; }
+    if (b.x < WALL_L) { a.x += WALL_L - b.x; b.x = WALL_L; }
+    if (b.x > WALL_R) { a.x -= b.x - WALL_R; b.x = WALL_R; }
+  }
+
+  function canBlock(d) {
+    return d.y <= 0 && (d.st === 'stand' || d.st === 'crouch' || d.st === 'block');
+  }
+  function guardOK(guard, d) {
+    if (guard === 'high') return !d.wantCr;
+    if (guard === 'low') return d.wantCr;
+    return true;
+  }
+
+  // m: 招式或飞行道具参数；ai: 攻击方下标（飞行道具为其主人）；dir: 击退方向
+  function applyHit(g, ai, di, m, dir, isProj) {
+    const a = g.f[ai], d = g.f[di];
+    const blocked = !m.throw && canBlock(d) && d.hbk && guardOK(m.guard || 'mid', d);
+    if (blocked) {
+      d.st = 'block'; d.hs = m.bs; d.cr = d.wantCr; d.vx = dir * m.kb; d.mv = '';
+      const chip = m.chip || 0;
+      d.hp = Math.max(0, d.hp - chip);
+      a.meter = Math.min(MAX_METER, a.meter + (m.meter || 4) * 0.5);
+      d.meter = Math.min(MAX_METER, d.meter + 3);
+      g.hitstop = Math.max(g.hitstop, 5);
+      emit(g, { type: 'block', who: di, x: d.x - dir * 18, y: d.y + (d.wantCr ? 50 : 95), big: m.dmg >= 70 });
+      if (d.hp <= 0) { d.st = 'airhit'; d.vy = 7; d.vx = dir * 3; d.y = Math.max(d.y, 0.01); }
+    } else {
+      const counter = d.st === 'atk' && d.mt < MOVES[d.mv].s;
+      const scale = Math.max(0.35, 1 - 0.12 * d.combo);
+      const dmg = Math.round(m.dmg * scale * (counter ? 1.2 : 1));
+      d.hp = Math.max(0, d.hp - dmg);
+      d.combo++;
+      d.mv = ''; d.flash = 6;
+      const air = d.y > 0 || m.kd || m.launch || m.throw || d.st === 'airhit' || d.hp <= 0;
+      if (air) {
+        d.st = 'airhit'; d.juggle++;
+        d.vy = m.launch || (m.throw ? 8 : 6.5);
+        d.vx = dir * (m.throw ? 5 : m.kb * 0.6 + 1.5);
+        d.y = Math.max(d.y, 0.01);
+      } else {
+        d.cr = d.wantCr && (d.st === 'crouch' || d.st === 'block');
+        d.st = 'hit';
+        d.hs = Math.max(8, m.hs + (counter ? 4 : 0) - d.combo);
+        d.vx = dir * m.kb;
+      }
+      a.meter = Math.min(MAX_METER, a.meter + (m.meter || 5));
+      d.meter = Math.min(MAX_METER, d.meter + (m.meter || 5) * 0.5);
+      g.hitstop = Math.max(g.hitstop, m.stop || 8);
+      emit(g, {
+        type: 'hit', who: di, x: d.x - dir * 16, y: d.y + (isCrouching(d) ? 55 : 100),
+        dmg, combo: d.combo, counter, big: dmg >= 70, throw: !!m.throw, super: !!m.super,
+      });
+    }
+    // 对手贴墙时，击退转成攻击方后退
+    if (!isProj && a.y <= 0 && ((dir > 0 && d.x > WALL_R - 12) || (dir < 0 && d.x < WALL_L + 12))) {
+      a.vx = -dir * m.kb * 0.8;
+      if (a.st === 'atk') a.x -= dir * m.kb * 2;
+    }
+  }
+
+  function collide(g) {
+    const res = [];
+    for (let i = 0; i < 2; i++) {
+      const a = g.f[i], d = g.f[1 - i];
+      if (a.st !== 'atk' || a.hit) continue;
+      const m = MOVES[a.mv];
+      if (a.mt < m.s || a.mt >= m.s + m.a) continue;
+      if (m.throw) {
+        const ok = a.y <= 0 && d.y <= 0 && Math.abs(d.x - a.x) <= m.range &&
+          (d.st === 'stand' || d.st === 'crouch' || (d.st === 'atk' && !MOVES[d.mv].air && d.mt > MOVES[d.mv].s + MOVES[d.mv].a)) &&
+          !invulnerable(d);
+        if (ok) res.push(i);
+        continue;
+      }
+      if (!m.hb || invulnerable(d)) continue;
+      if (d.st === 'airhit' && d.juggle >= 3) continue;
+      if (hurtOverlap(worldBox(a, m.hb), d)) res.push(i);
+    }
+    // 两个都打中 = 相杀，同时结算
+    const hits = res.map(i => {
+      const a = g.f[i], d = g.f[1 - i];
+      a.hit = true; a.conn = true; a.connT = a.mt;
+      return [i, MOVES[a.mv], d.x >= a.x ? 1 : -1];
+    });
+    for (const [i, m, dir] of hits) applyHit(g, i, 1 - i, m, dir, false);
+  }
+
+  function updateProjs(g) {
+    const ps = g.projs;
+    for (const p of ps) { p.x += p.vx; p.life--; }
+    // 波对波：互相抵消（气功炮穿透普通波）
+    for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
+      const p = ps[i], q = ps[j];
+      if (p.owner === q.owner || p.life <= 0 || q.life <= 0) continue;
+      if (Math.abs(p.x - q.x) < (p.w + q.w) / 2) {
+        if (p.super && !q.super) q.life = 0;
+        else if (q.super && !p.super) p.life = 0;
+        else { p.life = 0; q.life = 0; }
+        emit(g, { type: 'clash', x: (p.x + q.x) / 2, y: 95 });
+      }
+    }
+    for (const p of ps) {
+      if (p.life <= 0) continue;
+      const d = g.f[1 - p.owner];
+      if (invulnerable(d)) continue;
+      const box = { x0: p.x - p.w / 2, x1: p.x + p.w / 2, y0: p.y, y1: p.y + p.h };
+      if (hurtOverlap(box, d)) {
+        p.life = 0;
+        applyHit(g, p.owner, 1 - p.owner, {
+          dmg: p.dmg, hs: p.hs, bs: p.bs, kb: p.kb, chip: p.chip, guard: 'mid', kd: p.kd,
+          super: p.super, meter: 6, stop: p.super ? 20 : 8,
+        }, p.vx > 0 ? 1 : -1, true);
+      }
+    }
+    g.projs = ps.filter(p => p.life > 0 && p.x > WALL_L - 80 && p.x < WALL_R + 80);
+  }
+
+  function step(g, i0, i1) {
+    g.t++;
+    if (g.over) return;
+    if (g.hitstop > 0) {
+      g.hitstop--;
+      g.f[0].hbk = i0.h === -1; g.f[0].wantCr = i0.v === -1;
+      g.f[1].hbk = i1.h === -1; g.f[1].wantCr = i1.v === -1;
+      return;
+    }
+    if (g.koT) {
+      g.koT++;
+      if (g.koT > 150) g.over = true;
+    } else if (--g.roundT <= 0) {
+      g.roundT = 0;
+      const a = g.f[0].hp, b = g.f[1].hp;
+      g.winner = a > b ? 0 : b > a ? 1 : 2;
+      g.koT = 1;
+      emit(g, { type: 'timeup' });
+    }
+    think(g, 0, i0); think(g, 1, i1);
+    advance(g, 0); advance(g, 1);
+    separate(g);
+    collide(g);
+    updateProjs(g);
+    if (!g.koT) {
+      const k0 = g.f[0].hp <= 0, k1 = g.f[1].hp <= 0;
+      if (k0 || k1) {
+        g.winner = k0 && k1 ? 2 : k0 ? 1 : 0;
+        g.koT = 1;
+        emit(g, { type: 'ko', who: g.winner });
+      }
+    }
+  }
+
+  // ---------------- 人类输入（键盘/手柄 → intent，含搓招识别） ----------------
+  // 方向按小键盘记法记录（相对朝向）：6 前 4 后 2 下 3 前下 8 上
+  function makeInputReader() {
+    const hist = []; // 最近的方向
+    let prev = { a: false, b: false, c: false };
+    function dirNum(h, v) { return v === -1 ? (h === 1 ? 3 : h === -1 ? 1 : 2) : v === 1 ? (h === 1 ? 9 : h === -1 ? 7 : 8) : (h === 1 ? 6 : h === -1 ? 4 : 5); }
+    function seen(seq, win) {
+      // 在最近 win 帧里按顺序出现 seq
+      let k = seq.length - 1;
+      for (let i = hist.length - 1; i >= 0 && i >= hist.length - win && k >= 0; i--) {
+        if (seq[k].indexOf(hist[i]) >= 0) k--;
+      }
+      return k < 0;
+    }
+    return function read(raw, face, inAir) {
+      const right = raw.right && !raw.left, left = raw.left && !raw.right;
+      const h = right ? face : left ? -face : 0;
+      const v = raw.down ? -1 : raw.up ? 1 : 0;
+      hist.push(dirNum(h, v));
+      if (hist.length > 30) hist.shift();
+      const pa = raw.a && !prev.a, pb = raw.b && !prev.b, pc = raw.c && !prev.c;
+      // 一键必杀（和上一版格斗大脑实验台一样）：fb 波动、dp 升龙、su 气功炮；shift 放重版本
+      const pf = raw.fb && !prev.fb, pd = raw.dp && !prev.dp, ps = raw.su && !prev.su;
+      prev = { a: raw.a, b: raw.b, c: raw.c, fb: raw.fb, dp: raw.dp, su: raw.su };
+      let atk = '';
+      const qcf = seen([[2], [3], [6]], 14), dp = seen([[6], [2, 1], [3]], 16);
+      if (inAir) { if (pb) atk = 'jB'; else if (pa) atk = 'jA'; }
+      else if (ps) atk = 'super';
+      else if (pd) atk = raw.shift ? 'dpB' : 'dpA';
+      else if (pf) atk = raw.shift ? 'fbB' : 'fbA';
+      else if (pc) atk = qcf ? 'super' : 'throw';
+      else if (pa || pb) {
+        if (dp) atk = pa ? 'dpA' : 'dpB';
+        else if (qcf) atk = pa ? 'fbA' : 'fbB';
+        else if (v === -1) atk = pa ? 'cA' : 'cB';
+        else if (pb && h === 1) atk = 'over';
+        else atk = pa ? 'jab' : 'heavy';
+      }
+      return { h, v: inAir ? 0 : v, atk };
+    };
+  }
+
+  // ---------------- AI：每次决策推演所有候选招式 × 对手的可能应对 ----------------
+  const LEVELS = {
+    easy:   { name: '入门', delay: 22, every: 9, rand: 0.35, horizon: 30, hold: 12, noSuper: true },
+    normal: { name: '进阶', delay: 15, every: 6, rand: 0.12, horizon: 36, hold: 10 },
+    hard:   { name: '高手', delay: 8,  every: 3, rand: 0.03, horizon: 40, hold: 8 },
+    god:    { name: '魔王', delay: 0,  every: 2, rand: 0,    horizon: 44, hold: 6 },
+  };
+
+  const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  const I = (h, v, atk) => ({ h, v, atk: atk || '' });
+  const IDLE = I(0, 0);
+
+  // 候选：seq 是 [第几帧, intent]，之后按住最后一个方向直到 hold 结束
+  function groundCands(g, i, L) {
+    const f = g.f[i], o = g.f[1 - i], dx = Math.abs(o.x - f.x);
+    const c = [
+      { k: 'idle', seq: [[0, IDLE]] },
+      { k: 'fwd', seq: [[0, I(1, 0)]] },
+      { k: 'back', seq: [[0, I(-1, 0)]] },
+      { k: 'cblock', seq: [[0, I(-1, -1)]] },
+      { k: 'jumpF', seq: [[0, I(1, 1)]] },
+      { k: 'jumpF+B', seq: [[0, I(1, 1)], [13, I(0, 0, 'jB')]] },
+      { k: 'jumpF+A', seq: [[0, I(1, 1)], [17, I(0, 0, 'jA')]] },
+      { k: 'jumpN', seq: [[0, I(0, 1)]] },
+      { k: 'jumpB', seq: [[0, I(-1, 1)]] },
+      { k: 'jab', seq: [[0, I(0, 0, 'jab')]] },
+      { k: 'heavy', seq: [[0, I(0, 0, 'heavy')]] },
+      { k: 'cA', seq: [[0, I(0, -1, 'cA')]] },
+      { k: 'cB', seq: [[0, I(0, -1, 'cB')]] },
+      { k: 'over', seq: [[0, I(0, 0, 'over')]] },
+      { k: 'jab>fbA', seq: [[0, I(0, 0, 'jab')], [6, I(0, 0, 'fbA')]] },
+      { k: 'cA>fbB', seq: [[0, I(0, -1, 'cA')], [7, I(0, 0, 'fbB')]] },
+      { k: 'heavy>dpB', seq: [[0, I(0, 0, 'heavy')], [11, I(0, 0, 'dpB')]] },
+      { k: 'dpA', seq: [[0, I(0, 0, 'dpA')]] },
+      { k: 'dpB', seq: [[0, I(0, 0, 'dpB')]] },
+    ];
+    if (!hasProj(g, i)) c.push({ k: 'fbA', seq: [[0, I(0, 0, 'fbA')]] }, { k: 'fbB', seq: [[0, I(0, 0, 'fbB')]] });
+    if (dx < 110) c.push({ k: 'throw', seq: [[0, I(0, 0, 'throw')]] });
+    if (f.meter >= 100 && !L.noSuper) c.push({ k: 'super', seq: [[0, I(0, 0, 'super')]] });
+    return c;
+  }
+
+  // 对手可能的应对；habit 是这局里观察到的对手习惯（招式 → 次数），用得越多权重越高
+  function oppOptions(g, j, habit) {
+    const f = g.f[j], o = g.f[1 - j];
+    if (f.st === 'air' && !f.airUsed) {
+      return [
+        { w: 1, seq: [[0, IDLE]] },
+        { w: 1, seq: [[0, I(0, 0, 'jA')]] },
+        { w: 1, seq: [[0, I(0, 0, 'jB')]] },
+        { w: 1, seq: [[6, I(0, 0, 'jB')]] },
+      ];
+    }
+    if (!actionable(f)) return [{ w: 1, seq: null }];
+    const dx = Math.abs(o.x - f.x);
+    const r = [
+      { w: 1.0, k: 'idle', seq: [[0, IDLE]] },
+      { w: 1.0, k: 'fwd', seq: [[0, I(1, 0)]] },
+      { w: 1.2, k: 'back', seq: [[0, I(-1, 0)]] },
+      { w: 1.4, k: 'cblock', seq: [[0, I(-1, -1)]] },
+      { w: 0.8, k: 'jump', seq: [[0, I(1, 1)], [13, I(0, 0, 'jB')]] },
+      { w: 1.0, k: 'jab', seq: [[0, I(0, 0, 'jab')]] },
+      { w: 1.0, k: 'cA', seq: [[0, I(0, -1, 'cA')]] },
+      { w: 0.7, k: 'heavy', seq: [[0, I(0, 0, 'heavy')]] },
+      { w: 0.6, k: 'cB', seq: [[0, I(0, -1, 'cB')]] },
+      { w: 0.6, k: 'dp', seq: [[0, I(0, 0, 'dpA')]] },
+      // 等一下再出：对空升龙、迎击
+      { w: 0.5, k: 'dp', seq: [[0, I(-1, -1)], [7, I(0, 0, 'dpB')]] },
+      { w: 0.5, k: 'dp', seq: [[0, I(-1, -1)], [14, I(0, 0, 'dpB')]] },
+      { w: 0.4, k: 'heavy', seq: [[0, I(-1, 0)], [9, I(0, 0, 'heavy')]] },
+    ];
+    if (!hasProj(g, j)) r.push({ w: 0.7, k: 'fb', seq: [[0, I(0, 0, 'fbA')]] });
+    if (dx < 110) r.push({ w: 0.6, k: 'throw', seq: [[0, I(0, 0, 'throw')]] });
+    if (habit) {
+      let total = 0;
+      for (const key in habit) total += habit[key];
+      if (total > 0) for (const o2 of r) if (o2.k && habit[o2.k]) o2.w *= 1 + 4 * habit[o2.k] / total;
+    }
+    return r;
+  }
+
+  function habitKey(mv) {
+    if (mv === 'dpA' || mv === 'dpB') return 'dp';
+    if (mv === 'fbA' || mv === 'fbB' || mv === 'super') return 'fb';
+    if (mv === 'jA' || mv === 'jB') return 'jump';
+    if (mv === 'over') return 'heavy';
+    return mv;
+  }
+
+  // 推演里双方“打完一招后”的默认行为：看得到的攻击就按正确高度防，否则不动
+  function guardPolicy(g, i) {
+    const f = g.f[i], o = g.f[1 - i];
+    let threat = '';
+    if (o.st === 'atk') {
+      const m = MOVES[o.mv];
+      if (m.hb && o.mt < m.s + m.a) threat = m.guard;
+    }
+    if (!threat) {
+      for (const p of g.projs) {
+        if (p.owner !== i && Math.abs(p.x - f.x) < 260 && Math.sign(f.x - p.x) === Math.sign(p.vx)) { threat = 'mid'; break; }
+      }
+    }
+    if (!threat && o.y > 0 && Math.abs(o.x - f.x) < 160 && o.vy < 2) threat = 'high';
+    if (!threat) return IDLE;
+    return threat === 'high' ? I(-1, 0) : I(-1, -1);
+  }
+
+  function seqIntent(seq, k, hold, sim, i) {
+    if (!seq) return guardPolicy(sim, i);
+    let cur = null;
+    for (const s of seq) if (s[0] <= k) cur = s;
+    if (!cur) return IDLE;
+    const last = seq[seq.length - 1][0];
+    if (k > Math.max(hold, last)) return guardPolicy(sim, i);
+    if (cur[0] === k) return cur[1];
+    return { h: cur[1].h, v: cur[1].v, atk: '' };
+  }
+
+  function evaluate(s0, s, i) {
+    const me0 = s0.f[i], op0 = s0.f[1 - i], me = s.f[i], op = s.f[1 - i];
+    let v = (op0.hp - op.hp) - (me0.hp - me.hp) * 1.1;
+    if (op.hp <= 0) v += 2000;
+    if (me.hp <= 0) v -= 2000;
+    const bad = st => st === 'hit' || st === 'airhit' || st === 'down';
+    if (bad(op.st)) v += 18;
+    if (bad(me.st)) v -= 18;
+    v += 0.25 * (me.meter - me0.meter);
+    const behind = me.face === 1 ? me.x - WALL_L : WALL_R - me.x;
+    if (behind < 90) v -= 6;
+    const oppBehind = op.face === 1 ? op.x - WALL_L : WALL_R - op.x;
+    if (oppBehind < 90) v += 4;
+    // 主动贴近施压：离 110 左右最舒服；把对手压在防御里也算优势
+    v -= Math.abs(Math.abs(op.x - me.x) - 110) * 0.06;
+    if (op.st === 'block') v += 6;
+    return v;
+  }
+
+  function rollout(s0, i, cand, opp, L) {
+    const s = cloneGame(s0);
+    const j = 1 - i;
+    for (let k = 0; k < L.horizon; k++) {
+      const mi = seqIntent(cand.seq, k, L.hold, s, i);
+      const oi = seqIntent(opp.seq, k, L.hold, s, j);
+      if (i === 0) step(s, mi, oi); else step(s, oi, mi);
+      if (s.koT) break;
+    }
+    return evaluate(s0, s, i);
+  }
+
+  function makeAI(levelKey, i, seed) {
+    const L = LEVELS[levelKey];
+    let rng = (seed || 12345) >>> 0;
+    const rand = () => { rng = (rng * 1664525 + 1013904223) >>> 0; return rng / 4294967296; };
+    const seen = []; // 对手过去的样子（模拟反应延迟）
+    let plan = null, planT = -999, lastSig = '';
+    const stats = { decisions: 0, rollouts: 0 };
+    const habit = {}; // 这局里对手每类招式用了几次
+    let lastOppMv = '';
+
+    function perceive(g) {
+      const o = g.f[1 - i];
+      const curMv = o.st === 'atk' ? o.mv : '';
+      if (curMv && curMv !== lastOppMv) { const k = habitKey(curMv); habit[k] = (habit[k] || 0) + 1; }
+      lastOppMv = curMv;
+      // 没出招时的站位习惯：每 15 帧算一次
+      if (actionable(o)) {
+        const k = o.hbk ? (o.wantCr ? 'cblock' : 'back') : (o.vx * o.face > 0.5 ? 'fwd' : 'idle');
+        habit[k] = (habit[k] || 0) + 1 / 15;
+      }
+      seen.push({ f: Object.assign({}, o), projs: g.projs.filter(p => p.owner !== i).map(p => Object.assign({}, p)) });
+      if (seen.length > 40) seen.shift();
+      const idx = Math.max(0, seen.length - 1 - L.delay);
+      const view = cloneGame(g);
+      view.f[1 - i] = Object.assign({}, seen[idx].f);
+      view.projs = g.projs.filter(p => p.owner === i).map(p => Object.assign({}, p)).concat(seen[idx].projs.map(p => Object.assign({}, p)));
+      return view;
+    }
+
+    function decide(view) {
+      const f = view.f[i];
+      const cands = f.st === 'air'
+        ? [{ k: 'none', seq: [[0, IDLE]] }, { k: 'jA', seq: [[0, I(0, 0, 'jA')]] }, { k: 'jB', seq: [[0, I(0, 0, 'jB')]] }]
+        : groundCands(view, i, L);
+      const opts = oppOptions(view, 1 - i, habit);
+      // 平均分 + 最坏情况；最坏情况只看对手真会用的应对（权重不低于最高者的一半）
+      const score = (c, os) => {
+        let sum = 0, wsum = 0, worst = Infinity, wmax = 0;
+        for (const o of os) if (o.w > wmax) wmax = o.w;
+        for (const o of os) {
+          const v = rollout(view, i, c, o, L);
+          stats.rollouts++;
+          sum += v * o.w; wsum += o.w;
+          if (o.w >= wmax * 0.5 && v < worst) worst = v;
+        }
+        return 0.6 * (sum / wsum) + 0.4 * worst;
+      };
+      let pool = cands.filter(c => !c.seq[0][1].atk || moveAllowed(view, i, c.seq[0][1].atk));
+      // 候选太多时先粗筛：只拿几种最重要的对手应对打分，留前 8 名做完整推演
+      if (pool.length * opts.length > 160) {
+        const quick = opts.slice().sort((a, b) => b.w - a.w).slice(0, 4);
+        pool = pool.map(c => [score(c, quick), c]).sort((a, b) => b[0] - a[0]).slice(0, 8).map(x => x[1]);
+      }
+      let best = null, bestV = -Infinity;
+      const scored = [];
+      const t0 = now();
+      for (const c of pool) {
+        if (best && now() - t0 > 8) { stats.cut = (stats.cut || 0) + 1; break; } // 每帧最多算 8ms，保证不卡
+        const v = score(c, opts);
+        scored.push([v, c]);
+        if (v > bestV) { bestV = v; best = c; }
+      }
+      stats.decisions++;
+      if (L.rand && rand() < L.rand && scored.length) {
+        scored.sort((a, b) => b[0] - a[0]);
+        best = scored[Math.floor(rand() * Math.min(scored.length, 6))][1];
+      }
+      return best;
+    }
+
+    function intent(g) {
+      const view = perceive(g);
+      const f = g.f[i], o = view.f[1 - i];
+      const sig = o.st + o.mv + (o.y > 0 ? 'A' : 'G') + view.projs.length;
+      const free = actionable(f) || (f.st === 'air' && !f.airUsed);
+      if (!free) {
+        // 出招中：按计划继续（比如打中后的取消）；被打/防御中：按看到的攻击防御
+        if (plan && f.st === 'atk') {
+          const k = g.t - planT;
+          const it = seqIntent(plan.seq, k, L.hold, view, i);
+          if (it.atk) return it;
+        }
+        plan = null;
+        return guardPolicy(view, i);
+      }
+      const k = g.t - planT;
+      const stale = !plan || k >= L.hold || k >= L.every && sig !== lastSig || (f.st === 'air' && plan.air !== true);
+      if (stale || (k >= L.every && L.every <= 3)) {
+        plan = decide(view);
+        if (f.st === 'air') plan = Object.assign({ air: true }, plan);
+        planT = g.t; lastSig = sig;
+        return seqIntent(plan.seq, 0, L.hold, view, i);
+      }
+      return seqIntent(plan.seq, k, L.hold, view, i);
+    }
+    return { intent, stats, level: L, habit };
+  }
+
+  const api = {
+    MOVES, LEVELS, MAX_HP, MAX_METER, ROUND_FRAMES, WALL_L, WALL_R,
+    newGame, cloneGame, step, makeInputReader, makeAI, worldBox, isCrouching,
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.FightCore = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* 拆招擂台 · 画面、输入、流程 */
+(function () {
+  'use strict';
+  const C = window.FightCore;
+  const cv = document.getElementById('view');
+  const ctx = cv.getContext('2d');
+  const W = 960, H = 540, GY = 478;
+  const $ = id => document.getElementById(id);
+  const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const COLORS = [
+    { gi: '#d9493a', giDark: '#8f2a22', band: '#f2d27a', glow: '255,120,80' },
+    { gi: '#24a594', giDark: '#13635a', band: '#e9eef0', glow: '80,230,210' },
+  ];
+  const SKIN = '#e9c49d', SKIN_D = '#b88e6b', INK = '#0b0b12';
+  const HABIT_NAMES = { dp: '升龙', fb: '波动', jump: '跳入', jab: '轻拳', heavy: '重踢', cA: '下段拳', cB: '扫腿', throw: '投技' };
+
+  // ---------------- 存储（只是本机战绩，读不到也照常玩） ----------------
+  function loadRec() { try { return JSON.parse(localStorage.getItem('fight-rec') || '{}'); } catch (e) { return {}; } }
+  function saveRec(r) { try { localStorage.setItem('fight-rec', JSON.stringify(r)); } catch (e) { /* 忽略 */ } }
+  let rec = loadRec();
+  function showRec() {
+    document.querySelectorAll('[data-rec]').forEach(el => {
+      const r = rec[el.dataset.rec];
+      el.textContent = r ? `你的战绩 ${r.w} 胜 ${r.l} 负` : '还没挑战过';
+    });
+  }
+
+  // ---------------- 声音（Web Audio 现场合成） ----------------
+  let ac = null, muted = false;
+  function audio() {
+    if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; } }
+    if (ac && ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+  function noise(dur, freq, gain, q) {
+    if (muted || !ac) return;
+    const len = Math.floor(ac.sampleRate * dur), buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+    const src = ac.createBufferSource(); src.buffer = buf;
+    const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q || 1;
+    const g = ac.createGain(); g.gain.value = gain;
+    src.connect(f).connect(g).connect(ac.destination); src.start();
+  }
+  function tone(f0, f1, dur, gain, type) {
+    if (muted || !ac) return;
+    const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
+    o.type = type || 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+    g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(ac.destination); o.start(t); o.stop(t + dur + 0.02);
+  }
+  const SFX = {
+    hit: big => { noise(big ? 0.22 : 0.12, big ? 900 : 1600, big ? 0.9 : 0.6, 0.8); tone(big ? 140 : 200, 50, big ? 0.25 : 0.12, big ? 0.7 : 0.4); },
+    block: () => { noise(0.08, 3200, 0.35, 3); tone(900, 600, 0.06, 0.12, 'square'); },
+    proj: s => { tone(s ? 220 : 420, s ? 90 : 160, s ? 0.6 : 0.3, 0.25, 'sawtooth'); },
+    jump: () => tone(300, 500, 0.08, 0.05),
+    ko: () => { tone(110, 40, 1.6, 0.8, 'triangle'); noise(0.9, 400, 0.6, 0.5); },
+    super: () => { tone(80, 800, 0.5, 0.3, 'sawtooth'); },
+    bell: () => { tone(880, 860, 0.9, 0.2, 'triangle'); tone(1320, 1300, 0.6, 0.08); },
+  };
+
+  // ---------------- 背景（只画一次） ----------------
+  const bg = document.createElement('canvas'); bg.width = W; bg.height = H;
+  (function paintBg() {
+    const b = bg.getContext('2d');
+    const sky = b.createLinearGradient(0, 0, 0, GY);
+    sky.addColorStop(0, '#141329'); sky.addColorStop(0.55, '#2c2240'); sky.addColorStop(1, '#5b3646');
+    b.fillStyle = sky; b.fillRect(0, 0, W, H);
+    // 星
+    let s = 7; const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 90; i++) { b.fillStyle = `rgba(255,245,225,${0.15 + r() * 0.5})`; b.fillRect(r() * W, r() * 260, 1.2, 1.2); }
+    // 月
+    const mx = 700, my = 120;
+    const glow = b.createRadialGradient(mx, my, 20, mx, my, 170);
+    glow.addColorStop(0, 'rgba(250,232,190,.35)'); glow.addColorStop(1, 'rgba(250,232,190,0)');
+    b.fillStyle = glow; b.fillRect(0, 0, W, H);
+    b.fillStyle = '#f4e7c6'; b.beginPath(); b.arc(mx, my, 46, 0, Math.PI * 2); b.fill();
+    b.fillStyle = 'rgba(200,180,150,.25)'; b.beginPath(); b.arc(mx - 14, my - 8, 9, 0, 7); b.arc(mx + 12, my + 14, 6, 0, 7); b.fill();
+    // 远山三层
+    const ridge = (base, amp, col, seed) => {
+      b.fillStyle = col; b.beginPath(); b.moveTo(0, GY);
+      for (let x = 0; x <= W; x += 8) {
+        const y = base - amp * (0.55 * Math.sin(x * 0.006 + seed) + 0.3 * Math.sin(x * 0.017 + seed * 2) + 0.15 * Math.sin(x * 0.041 + seed * 3));
+        b.lineTo(x, y);
+      }
+      b.lineTo(W, GY); b.closePath(); b.fill();
+    };
+    ridge(300, 70, '#3a2b4a', 1.3); ridge(345, 55, '#2a2038', 4.1); ridge(390, 40, '#1d1729', 2.2);
+    // 雾
+    const fog = b.createLinearGradient(0, 330, 0, 420);
+    fog.addColorStop(0, 'rgba(120,90,120,0)'); fog.addColorStop(1, 'rgba(120,90,120,.28)');
+    b.fillStyle = fog; b.fillRect(0, 330, W, 90);
+    // 檐角剪影
+    b.fillStyle = '#120f1c';
+    const roof = (x, w, y) => { b.beginPath(); b.moveTo(x - 20, y); b.quadraticCurveTo(x + w / 2, y - 26, x + w + 20, y); b.lineTo(x + w, y + 8); b.lineTo(x, y + 8); b.closePath(); b.fill(); b.fillRect(x + 8, y + 8, w - 16, GY - y); };
+    roof(-30, 150, 360); roof(850, 150, 350);
+    // 地板
+    const floor = b.createLinearGradient(0, GY - 6, 0, H);
+    floor.addColorStop(0, '#5a3d2c'); floor.addColorStop(1, '#2a1b14');
+    b.fillStyle = floor; b.fillRect(0, GY - 6, W, H - GY + 6);
+    b.strokeStyle = 'rgba(0,0,0,.35)'; b.lineWidth = 1;
+    for (let i = -12; i <= 12; i++) { b.beginPath(); b.moveTo(W / 2 + i * 40, GY - 6); b.lineTo(W / 2 + i * 110, H); b.stroke(); }
+    for (let y = GY + 6, k = 1; y < H; y += 8 + k * 3, k++) { b.strokeStyle = 'rgba(0,0,0,.25)'; b.beginPath(); b.moveTo(0, y); b.lineTo(W, y); b.stroke(); }
+    b.fillStyle = 'rgba(255,200,150,.10)'; b.fillRect(0, GY - 6, W, 2);
+  })();
+
+  // ---------------- 姿势（角度：0 = 向下，正 = 朝前转；π/2 = 平伸向前，π = 向上） ----------------
+  const P = {
+    stand:  { lean: .08, aF: [.5, 2.5], aB: [.25, 2.2], lF: [.32, .05], lB: [-.28, -.2] },
+    crouch: { lean: .45, aF: [.9, 2.6], aB: [.6, 2.3], lF: [1.25, -.25], lB: [.55, -.95] },
+    air:    { lean: .1, aF: [.9, 2.4], aB: [.4, 2.0], lF: [1.3, .1], lB: [.6, -.5] },
+    block:  { lean: -.05, aF: [1.0, 2.9], aB: [.7, 2.8], lF: [.3, .05], lB: [-.3, -.2] },
+    cblock: { lean: .3, aF: [1.1, 2.9], aB: [.8, 2.8], lF: [1.25, -.25], lB: [.55, -.95] },
+    hit:    { lean: -.4, aF: [-.4, .2], aB: [-.7, -.3], lF: [.4, .1], lB: [-.35, -.25] },
+    chit:   { lean: -.1, aF: [-.4, .2], aB: [-.7, -.3], lF: [1.25, -.25], lB: [.55, -.95] },
+    airhit: { lean: -1.0, aF: [-1.2, -.8], aB: [-1.6, -1.2], lF: [.9, .4], lB: [.5, 0] },
+    down:   { lean: -1.52, aF: [-1.4, -1.3], aB: [-1.6, -1.5], lF: [1.52, 1.5], lB: [1.45, 1.52], lift: 13 },
+  };
+  const MP = {
+    jab:   { base: 'stand', s: { lean: .1, aF: [.3, 2.6] }, a: { lean: .2, aF: [1.57, 1.57], aB: [.2, 2.2] } },
+    heavy: { base: 'stand', s: { lean: -.1, lF: [.9, -.3] }, a: { lean: -.35, lF: [1.65, 1.6], lB: [-.15, -.1], aF: [.4, 2.4], aB: [-.4, 1.0] } },
+    cA:    { base: 'crouch', s: { aF: [.6, 2.4] }, a: { aF: [1.45, 1.5] } },
+    cB:    { base: 'crouch', s: { lF: [1.1, -.6] }, a: { lean: .55, lF: [1.62, 1.6], lB: [.7, -.9], aB: [.3, .3] } },
+    over:  { base: 'stand', s: { lean: -.25, aF: [3.0, 3.4], aB: [2.6, 3.0] }, a: { lean: .45, aF: [1.25, 1.05], aB: [1.0, .9] } },
+    jA:    { base: 'air', s: { aF: [.4, 2.3] }, a: { aF: [1.2, 1.0] } },
+    jB:    { base: 'air', s: { lF: [.9, -.4] }, a: { lean: -.15, lF: [1.15, 1.05] } },
+    throw: { base: 'stand', s: { aF: [1.2, 1.6], aB: [1.0, 1.4] }, a: { lean: .25, aF: [1.5, 1.65], aB: [1.3, 1.5] } },
+    fbA:   { base: 'stand', s: { lean: -.12, aF: [-.4, .6], aB: [-.6, .4] }, a: { lean: .25, aF: [1.55, 1.55], aB: [1.45, 1.5] } },
+    fbB:   { base: 'stand', s: { lean: -.12, aF: [-.4, .6], aB: [-.6, .4] }, a: { lean: .25, aF: [1.55, 1.55], aB: [1.45, 1.5] } },
+    dpA:   { base: 'crouch', s: { aF: [1.0, 2.0] }, a: { lean: -.05, aF: [3.0, 3.1], aB: [.5, 2.2], lF: [1.0, .2], lB: [.2, -.4] } },
+    dpB:   { base: 'crouch', s: { aF: [1.0, 2.0] }, a: { lean: -.05, aF: [3.0, 3.1], aB: [.5, 2.2], lF: [1.0, .2], lB: [.2, -.4] } },
+    super: { base: 'stand', s: { lean: -.2, aF: [-.6, .5], aB: [-.8, .3], lF: [.6, .1], lB: [-.6, -.3] }, a: { lean: .3, aF: [1.55, 1.55], aB: [1.5, 1.52], lF: [.6, .1], lB: [-.6, -.3] } },
+  };
+  const ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
+  function merge(base, part) { return Object.assign({}, base, part || {}); }
+  function mix(p, q, t) {
+    const r = {};
+    for (const k of ['lean', 'aF', 'aB', 'lF', 'lB', 'lift']) {
+      const a = p[k] === undefined ? (k === 'lift' ? 0 : p[k]) : p[k], b = q[k] === undefined ? (k === 'lift' ? 0 : q[k]) : q[k];
+      if (Array.isArray(a)) r[k] = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      else r[k] = (a || 0) + ((b || 0) - (a || 0)) * t;
+    }
+    return r;
+  }
+
+  function poseOf(f, t) {
+    const crouching = C.isCrouching(f);
+    switch (f.st) {
+      case 'stand': {
+        let p = merge(P.stand, {});
+        if (Math.abs(f.vx) > 0.2) {
+          const ph = t * 0.28 * Math.sign(f.vx * f.face);
+          p.lF = [0.42 * Math.sin(ph), 0.42 * Math.sin(ph) - 0.35 * (1 + Math.cos(ph)) / 2];
+          p.lB = [0.42 * Math.sin(ph + Math.PI), 0.42 * Math.sin(ph + Math.PI) - 0.35 * (1 + Math.cos(ph + Math.PI)) / 2];
+        }
+        if (f.hbk) p = merge(p, { aF: P.block.aF, aB: P.block.aB, lean: 0 });
+        p.lean += 0.025 * Math.sin(t * 0.07);
+        return p;
+      }
+      case 'crouch': return f.hbk ? P.cblock : P.crouch;
+      case 'air': return P.air;
+      case 'block': return f.cr ? P.cblock : P.block;
+      case 'hit': return f.cr ? P.chit : P.hit;
+      case 'airhit': return P.airhit;
+      case 'down': case 'ko': return P.down;
+      case 'rise': return mix(P.down, P.crouch, ease(f.t / 14));
+      case 'atk': {
+        const m = C.MOVES[f.mv], mp = MP[f.mv];
+        const base = P[mp.base];
+        const S = merge(base, mp.s), A = merge(base, mp.a);
+        if (f.mt < m.s) return mix(base, S, ease(f.mt / m.s));
+        if (f.mt < m.s + m.a) return mix(S, A, ease((f.mt - m.s + 1) / 2));
+        const back = crouching ? P.crouch : f.y > 0 ? P.air : P.stand;
+        return mix(A, back, ease((f.mt - m.s - m.a) / m.r));
+      }
+    }
+    return P.stand;
+  }
+
+  const L = { torso: 54, ua: 28, fa: 28, th: 38, sh: 40, head: 13 };
+  function ext(a, l) { return Math.max(0, Math.cos(a)) * l; }
+  function drawFighter(f, i, t) {
+    const col = COLORS[i];
+    const p = poseOf(f, t);
+    const legH = Math.max(ext(p.lF[0], L.th) + ext(p.lF[1], L.sh), ext(p.lB[0], L.th) + ext(p.lB[1], L.sh));
+    const baseY = GY - f.y;
+    const hipY = -(legH + (p.lift || 0));
+    // 影子
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    const sw = 46 * Math.max(0.4, 1 - f.y / 250);
+    ctx.beginPath(); ctx.ellipse(f.x, GY + 2, sw, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(f.x, baseY);
+    ctx.scale(f.face, 1);
+    const pt = (x, y, a, l) => [x + Math.sin(a) * l, y + Math.cos(a) * l];
+    const hip = [0, hipY];
+    const neck = [Math.sin(p.lean) * L.torso, hipY - Math.cos(p.lean) * L.torso];
+    const sh = [neck[0] - Math.sin(p.lean) * 6, neck[1] + Math.cos(p.lean) * 6];
+    const head = [neck[0] + Math.sin(p.lean) * 15, neck[1] - Math.cos(p.lean) * 15];
+    const limb = (start, ang, lens, widths, colors) => {
+      const k = pt(start[0], start[1], ang[0], lens[0]);
+      const e = pt(k[0], k[1], ang[1], lens[1]);
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.strokeStyle = INK; ctx.lineWidth = widths[0] + 5;
+      ctx.beginPath(); ctx.moveTo(start[0], start[1]); ctx.lineTo(k[0], k[1]); ctx.lineTo(e[0], e[1]); ctx.stroke();
+      ctx.strokeStyle = colors[0]; ctx.lineWidth = widths[0];
+      ctx.beginPath(); ctx.moveTo(start[0], start[1]); ctx.lineTo(k[0], k[1]); ctx.stroke();
+      ctx.strokeStyle = colors[1]; ctx.lineWidth = widths[1];
+      ctx.beginPath(); ctx.moveTo(k[0], k[1]); ctx.lineTo(e[0], e[1]); ctx.stroke();
+      return e;
+    };
+    const fist = (e, c) => { ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(e[0], e[1], 8.5, 0, 7); ctx.fill(); ctx.fillStyle = c; ctx.beginPath(); ctx.arc(e[0], e[1], 6, 0, 7); ctx.fill(); };
+    const foot = (e, a, c) => { ctx.save(); ctx.translate(e[0], e[1]); ctx.rotate(-a + Math.PI / 2 * 0); ctx.fillStyle = INK; ctx.fillRect(-4, -5, 20, 10); ctx.fillStyle = c; ctx.fillRect(-2, -3, 16, 6); ctx.restore(); };
+
+    // 后侧手脚（暗色）
+    const eB = limb(hip, p.lB, [L.th, L.sh], [15, 13], [col.giDark, col.giDark]);
+    foot(eB, p.lB[1], SKIN_D);
+    const hB = limb(sh, p.aB, [L.ua, L.fa], [12, 10], [col.giDark, SKIN_D]);
+    fist(hB, SKIN_D);
+    // 躯干
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = INK; ctx.lineWidth = 31;
+    ctx.beginPath(); ctx.moveTo(hip[0], hip[1]); ctx.lineTo(sh[0], sh[1]); ctx.stroke();
+    const tg = ctx.createLinearGradient(-14, 0, 14, 0); tg.addColorStop(0, col.giDark); tg.addColorStop(0.6, col.gi); tg.addColorStop(1, col.gi);
+    ctx.strokeStyle = tg; ctx.lineWidth = 26;
+    ctx.beginPath(); ctx.moveTo(hip[0], hip[1]); ctx.lineTo(sh[0], sh[1]); ctx.stroke();
+    // 衣襟 + 腰带
+    ctx.strokeStyle = SKIN; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(sh[0] + 4, sh[1] + 2); ctx.lineTo((hip[0] + sh[0]) / 2 + 3, (hip[1] + sh[1]) / 2 - 4); ctx.stroke();
+    ctx.strokeStyle = INK; ctx.lineWidth = 7;
+    const bx = hip[0] + Math.sin(p.lean) * 8, by = hip[1] - Math.cos(p.lean) * 8;
+    ctx.beginPath(); ctx.moveTo(bx - 14 * Math.cos(p.lean), by - 14 * Math.sin(p.lean)); ctx.lineTo(bx + 14 * Math.cos(p.lean), by + 14 * Math.sin(p.lean)); ctx.stroke();
+    // 前腿
+    const eF = limb(hip, p.lF, [L.th, L.sh], [16, 14], [col.gi, col.gi]);
+    foot(eF, p.lF[1], SKIN);
+    // 头 + 头带
+    ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(head[0], head[1], L.head + 3, 0, 7); ctx.fill();
+    ctx.fillStyle = SKIN; ctx.beginPath(); ctx.arc(head[0], head[1], L.head, 0, 7); ctx.fill();
+    ctx.fillStyle = '#1c1414'; ctx.beginPath(); ctx.arc(head[0] - 2, head[1] - 3, L.head, Math.PI * 1.05, Math.PI * 1.95); ctx.fill();
+    ctx.strokeStyle = col.band; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(head[0], head[1], L.head - 1, Math.PI * 1.08, Math.PI * 1.9); ctx.stroke();
+    const sway = Math.sin(t * 0.18 + i) * 5 - f.vx * 2;
+    ctx.beginPath(); ctx.moveTo(head[0] - L.head + 1, head[1] - 4);
+    ctx.quadraticCurveTo(head[0] - L.head - 14, head[1] - 2 + sway * 0.5, head[0] - L.head - 26, head[1] + 4 + sway); ctx.stroke();
+    ctx.fillStyle = INK; ctx.fillRect(head[0] + 5, head[1] - 2, 3, 3);
+    // 前手
+    const hF = limb(sh, p.aF, [L.ua, L.fa], [13, 11], [col.gi, SKIN]);
+    fist(hF, SKIN);
+    // 被打白闪
+    if (f.flash > 3) {
+      ctx.globalCompositeOperation = 'source-atop';
+      ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillRect(-80, -200, 160, 210);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    ctx.restore();
+  }
+
+  // ---------------- 特效 ----------------
+  let parts = [], shake = 0, flashScreen = 0, superDim = 0;
+  const popups = []; // 文字：反击 / 连击
+  function burst(x, y, color, n, speed, life) {
+    for (let k = 0; k < n; k++) {
+      const a = Math.random() * Math.PI * 2, v = speed * (0.4 + Math.random());
+      parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life, max: life, color, kind: 'line' });
+    }
+  }
+  function ring(x, y, color) { parts.push({ x, y, r: 6, life: 14, max: 14, color, kind: 'ring' }); }
+  function dust(x) { for (let k = 0; k < 8; k++) parts.push({ x: x + (Math.random() - .5) * 40, y: GY - 2, vx: (Math.random() - .5) * 2.5, vy: -Math.random() * 1.5, life: 24, max: 24, color: '200,170,140', kind: 'dot' }); }
+  function stepParts() {
+    for (const p of parts) { p.life--; if (p.kind === 'ring') p.r += 3.2; else { p.x += p.vx; p.y += p.vy; p.vx *= 0.9; p.vy *= 0.9; if (p.kind === 'dot') p.vy -= 0.02; } }
+    parts = parts.filter(p => p.life > 0);
+    for (const q of popups) q.life--;
+    while (popups.length && popups[0].life <= 0) popups.shift();
+    if (shake > 0) shake *= 0.82;
+    if (flashScreen > 0) flashScreen--;
+    if (superDim > 0) superDim--;
+  }
+  function drawParts() {
+    for (const p of parts) {
+      const a = p.life / p.max;
+      if (p.kind === 'line') {
+        ctx.strokeStyle = `rgba(${p.color},${a})`; ctx.lineWidth = 3 * a + 1;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 3, p.y - p.vy * 3); ctx.stroke();
+      } else if (p.kind === 'ring') {
+        ctx.strokeStyle = `rgba(${p.color},${a})`; ctx.lineWidth = 4 * a;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.stroke();
+      } else {
+        ctx.fillStyle = `rgba(${p.color},${a * 0.6})`; ctx.beginPath(); ctx.arc(p.x, p.y, 3 + (1 - a) * 4, 0, 7); ctx.fill();
+      }
+    }
+  }
+  function drawProj(p) {
+    const col = COLORS[p.owner].glow, x = p.x, y = GY - p.y - p.h / 2, r = p.super ? 32 : 17;
+    for (let k = 5; k >= 1; k--) {
+      const tx = x - Math.sign(p.vx) * k * (p.super ? 14 : 9);
+      ctx.fillStyle = `rgba(${col},${0.08 * (6 - k)})`;
+      ctx.beginPath(); ctx.arc(tx, y, r * (1 - k * 0.1), 0, 7); ctx.fill();
+    }
+    const g = ctx.createRadialGradient(x, y, 2, x, y, r * 1.6);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, `rgba(${col},.95)`); g.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 1.6, 0, 7); ctx.fill();
+  }
+
+  // ---------------- HUD ----------------
+  const shown = [{ hp: 1000, drain: 1000 }, { hp: 1000, drain: 1000 }];
+  function bar(x, y, w, h, ratio, drain, flip, color) {
+    const slant = 12;
+    const path = (x0, x1) => { ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.lineTo(x1 - slant, y + h); ctx.lineTo(x0 - slant, y + h); ctx.closePath(); };
+    ctx.fillStyle = 'rgba(0,0,0,.55)'; path(x - 3, x + w + 3); ctx.fill();
+    const seg = r => flip ? [x + w * (1 - r), x + w] : [x, x + w * r];
+    let [a, b] = seg(drain); ctx.fillStyle = '#f2efe6'; path(a, b); ctx.fill();
+    [a, b] = seg(ratio);
+    const gr = ctx.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, '#ffe27a'); gr.addColorStop(1, color);
+    ctx.fillStyle = ratio < 0.25 ? '#ff5a3c' : gr; path(a, b); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1.5; path(x - 3, x + w + 3); ctx.stroke();
+  }
+  function drawHUD() {
+    const g = game;
+    ctx.save();
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < 2; i++) {
+      const f = g.f[i], s = shown[i];
+      s.hp = f.hp;
+      if (s.drain > s.hp) s.drain = Math.max(s.hp, s.drain - (game.hitstop ? 0 : 6)); else s.drain = s.hp;
+      const x = i === 0 ? 40 : 540, w = 380;
+      bar(x, 26, w, 22, s.hp / C.MAX_HP, s.drain / C.MAX_HP, i === 0, '#e0a43a');
+      ctx.font = '600 15px "Noto Sans SC", sans-serif';
+      ctx.fillStyle = '#ece4d3';
+      ctx.textAlign = i === 0 ? 'left' : 'right';
+      ctx.fillText(names[i], i === 0 ? 34 : 926, 64);
+      // 回合胜场
+      for (let k = 0; k < 2; k++) {
+        const cx = i === 0 ? 404 - k * 18 : 556 + k * 18;
+        ctx.fillStyle = match.wins[i] > k ? '#efc25a' : 'rgba(255,255,255,.18)';
+        ctx.beginPath(); ctx.arc(cx, 64, 6, 0, 7); ctx.fill();
+      }
+      // 气槽
+      const mw = 220, mx = i === 0 ? 40 : 920 - mw, my = 506, r = f.meter / C.MAX_METER;
+      ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(mx - 2, my - 2, mw + 4, 14);
+      ctx.fillStyle = r >= 1 ? `hsl(${45 + 10 * Math.sin(g.t * 0.2)},95%,62%)` : '#b98b2e';
+      if (i === 0) ctx.fillRect(mx, my, mw * r, 10); else ctx.fillRect(mx + mw * (1 - r), my, mw * r, 10);
+      ctx.font = '22px "Zhi Mang Xing", serif'; ctx.fillStyle = r >= 1 ? '#efc25a' : 'rgba(236,228,211,.7)';
+      ctx.textAlign = i === 0 ? 'left' : 'right';
+      ctx.fillText(r >= 1 ? '气 · 满' : '气', i === 0 ? mx + mw + 10 : mx - 10, my + 4);
+      // 连击
+      const victim = g.f[1 - i];
+      if (victim.combo >= 2 && (victim.st === 'hit' || victim.st === 'airhit')) {
+        ctx.font = '700 34px "Oxanium", sans-serif'; ctx.fillStyle = '#efc25a';
+        ctx.textAlign = i === 0 ? 'left' : 'right';
+        const cx = i === 0 ? 40 : 920;
+        ctx.fillText(victim.combo, cx, 150);
+        ctx.font = '26px "Zhi Mang Xing", serif'; ctx.fillStyle = '#ece4d3';
+        ctx.fillText('连击', i === 0 ? cx + 22 + String(victim.combo).length * 18 : cx - 22 - String(victim.combo).length * 18, 152);
+      }
+    }
+    // 计时
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(452, 14, 56, 46);
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.strokeRect(452, 14, 56, 46);
+    const sec = Math.ceil(g.roundT / 60);
+    ctx.font = '700 32px "Oxanium", sans-serif'; ctx.fillStyle = sec <= 10 ? '#ff7a5c' : '#ece4d3';
+    ctx.fillText(String(sec).padStart(2, '0'), 480, 38);
+    // 弹出字
+    for (const q of popups) {
+      const a = Math.min(1, q.life / 20);
+      ctx.font = `${q.size || 30}px "Zhi Mang Xing", serif`;
+      ctx.fillStyle = `rgba(${q.color},${a})`; ctx.textAlign = 'center';
+      ctx.fillText(q.text, q.x, q.y - (q.max - q.life) * 0.6);
+    }
+    ctx.restore();
+  }
+
+  function banner(text, sub, color) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(0, 210, W, 120);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '96px "Zhi Mang Xing", serif';
+    ctx.fillStyle = INK; ctx.fillText(text, 484, 274);
+    ctx.fillStyle = color || '#ece4d3'; ctx.fillText(text, 480, 270);
+    if (sub) { ctx.font = '500 16px "Noto Sans SC", sans-serif'; ctx.fillStyle = 'rgba(236,228,211,.8)'; ctx.fillText(sub, 480, 318); }
+    ctx.restore();
+  }
+
+  // ---------------- 输入：键盘 + 手柄 + 触屏 ----------------
+  const keys = {};
+  const KEYMAP = {
+    ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down',
+    KeyJ: 'a', KeyZ: 'a', KeyK: 'b', KeyX: 'b', KeyL: 'c', KeyC: 'c',
+    KeyU: 'fb', KeyI: 'dp', KeyO: 'su', ShiftLeft: 'shift', ShiftRight: 'shift',
+  };
+  const touchKeys = {};
+  let padPrev = {};
+
+  function onOtherButton() { const a = document.activeElement; return !!(a && a.tagName === 'BUTTON' && !a.classList.contains('level') && a.id !== 'start' && a.id !== 'again'); }
+  function inMatch() { return mode === 'fight' || mode === 'intro'; }
+
+  addEventListener('keydown', e => {
+    const k = KEYMAP[e.code];
+    if (k) {
+      keys[k] = true;
+      // 对战时方向键、空格不要滚动页面
+      if (inMatch()) e.preventDefault();
+    }
+    if (e.repeat) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const code = e.code;
+    // 说明浮层最优先：Esc / H 关闭
+    if (!$('help').hidden) {
+      if (code === 'Escape' || code === 'KeyH' || code === 'Enter') { e.preventDefault(); closeHelp(); }
+      return;
+    }
+    if (code === 'KeyH') { openHelp(); return; }
+    if (code === 'KeyM') { toggleMute(); return; }
+    switch (mode) {
+      case 'menu':
+        if (code === 'Enter' || code === 'NumpadEnter') { if (onOtherButton()) return; e.preventDefault(); startMatch(false); }
+        else if (code === 'KeyV') startMatch(true);
+        else if (code === 'ArrowLeft' || code === 'ArrowRight') { e.preventDefault(); shiftLevel(code === 'ArrowRight' ? 1 : -1); }
+        else if (/^(Digit|Numpad)[1-4]$/.test(code)) setLevel(LEVEL_ORDER[+code.slice(-1) - 1]);
+        break;
+      case 'intro': case 'fight':
+        if (code === 'Escape' || code === 'KeyP' || code === 'Space') { e.preventDefault(); pause(); }
+        break;
+      case 'paused':
+        if (code === 'Escape' || code === 'KeyP' || code === 'Space') { e.preventDefault(); resume(); }
+        else if (code === 'KeyR') restartMatch();
+        else if (code === 'KeyQ') toMenu();
+        break;
+      case 'result':
+        if (code === 'Enter' || code === 'NumpadEnter') { if (onOtherButton()) return; e.preventDefault(); startMatch(demo); }
+        else if (code === 'Escape' || code === 'KeyQ') toMenu();
+        break;
+    }
+  });
+  addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) keys[k] = false; });
+  function releaseAll() { for (const k in keys) keys[k] = false; for (const k in touchKeys) touchKeys[k] = false; }
+  addEventListener('blur', () => { releaseAll(); if (inMatch()) pause('切到别的窗口了，已自动暂停。'); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && inMatch()) { releaseAll(); pause('切到别的页面了，已自动暂停。'); } });
+
+  function readRaw() {
+    const r = {};
+    for (const k of ['left', 'right', 'up', 'down', 'a', 'b', 'c', 'fb', 'dp', 'su', 'shift']) r[k] = !!(keys[k] || touchKeys[k]);
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (const p of pads) {
+      if (!p) continue;
+      const b = k => !!(p.buttons[k] && p.buttons[k].pressed);
+      const ax = p.axes[0] || 0, ay = p.axes[1] || 0;
+      r.left = r.left || b(14) || ax < -0.5; r.right = r.right || b(15) || ax > 0.5;
+      r.up = r.up || b(12) || ay < -0.6; r.down = r.down || b(13) || ay > 0.5;
+      r.a = r.a || b(2); r.b = r.b || b(3); r.c = r.c || b(0); r.su = r.su || b(1);
+      r.fb = r.fb || b(4); r.dp = r.dp || b(5); r.shift = r.shift || b(7);
+    }
+    return r;
+  }
+  // 手柄 Start 键：暂停 / 继续 / 菜单里开战
+  function pollPadButtons() {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (const p of pads) {
+      if (!p) continue;
+      const st = !!(p.buttons[9] && p.buttons[9].pressed);
+      const prev = padPrev[p.index] || false;
+      if (st && !prev) {
+        if (!$('help').hidden) closeHelp();
+        else if (inMatch()) pause();
+        else if (mode === 'paused') resume();
+        else if (mode === 'menu') startMatch(false);
+        else if (mode === 'result') startMatch(demo);
+      }
+      padPrev[p.index] = st;
+    }
+  }
+
+  // 触屏：左边摇杆（8 方向，可以搓招），右边按键（多点触控）
+  function setupTouch() {
+    const isTouch = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window;
+    if (isTouch) document.body.classList.add('touchp');
+    addEventListener('touchstart', () => document.body.classList.add('touchp'), { once: true, passive: true });
+    const stick = $('stick'), knob = $('knob');
+    let sid = null, cx = 0, cy = 0;
+    const setDir = (dx, dy) => {
+      const d = Math.hypot(dx, dy), dead = 16, max = 46;
+      const s = d > max ? max / d : 1;
+      knob.style.transform = `translate(${dx * s}px, ${dy * s}px)`;
+      const on = d > dead, ang = Math.atan2(dy, dx);
+      touchKeys.right = on && Math.cos(ang) > 0.38;
+      touchKeys.left = on && Math.cos(ang) < -0.38;
+      touchKeys.down = on && Math.sin(ang) > 0.38;
+      touchKeys.up = on && Math.sin(ang) < -0.55;
+    };
+    stick.addEventListener('pointerdown', e => {
+      e.preventDefault(); sid = e.pointerId; stick.setPointerCapture(sid);
+      const r = stick.querySelector('.base').getBoundingClientRect();
+      cx = r.left + r.width / 2; cy = r.top + r.height / 2;
+      setDir(e.clientX - cx, e.clientY - cy);
+    });
+    stick.addEventListener('pointermove', e => { if (e.pointerId === sid) setDir(e.clientX - cx, e.clientY - cy); });
+    const end = e => { if (e.pointerId === sid) { sid = null; setDir(0, 0); } };
+    stick.addEventListener('pointerup', end); stick.addEventListener('pointercancel', end);
+    document.querySelectorAll('.tk').forEach(btn => {
+      const k = btn.dataset.k;
+      btn.addEventListener('pointerdown', e => { e.preventDefault(); btn.setPointerCapture(e.pointerId); touchKeys[k] = true; btn.classList.add('on'); audio(); });
+      const up = () => { touchKeys[k] = false; btn.classList.remove('on'); };
+      btn.addEventListener('pointerup', up); btn.addEventListener('pointercancel', up); btn.addEventListener('lostpointercapture', up);
+      btn.addEventListener('contextmenu', e => e.preventDefault());
+    });
+  }
+
+  // ---------------- 流程 ----------------
+  const LEVEL_ORDER = ['easy', 'normal', 'hard', 'god'];
+  let level = 'hard', demo = false, mode = 'menu', modeT = 0, prevMode = 'fight';
+  let game = C.newGame(), reader = C.makeInputReader(), ais = [null, null];
+  const match = { wins: [0, 0], round: 1, dmg: 0, maxCombo: 0 };
+  let names = ['你', 'AI'];
+  let helpReturn = null; // 关掉说明后回到哪里
+
+  function setLevel(lv) {
+    level = lv;
+    document.querySelectorAll('.level').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.level === lv)));
+    try { localStorage.setItem('fight-level', lv); } catch (e) { /* 忽略 */ }
+  }
+  function shiftLevel(d) { setLevel(LEVEL_ORDER[(LEVEL_ORDER.indexOf(level) + d + 4) % 4]); $('lv-' + level).focus(); }
+  document.querySelectorAll('.level').forEach(b => {
+    b.addEventListener('click', () => setLevel(b.dataset.level));
+    b.addEventListener('dblclick', () => { setLevel(b.dataset.level); startMatch(false); });
+  });
+
+  function show(id) { for (const k of ['menu', 'pause', 'result']) $(k).hidden = k !== id; }
+  function setStatus(t) { $('status').textContent = t; }
+  function syncBar() {
+    const pb = $('tb-pause');
+    pb.disabled = !(inMatch() || mode === 'paused');
+    pb.innerHTML = mode === 'paused' ? '继续 <kbd>Esc</kbd>' : '暂停 <kbd>Esc</kbd>';
+  }
+  function setMode(m) {
+    mode = m; modeT = 0; syncBar();
+    // 进入对战时把焦点从按钮上拿走，免得空格/回车同时点到按钮
+    if ((m === 'fight' || m === 'intro') && document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  }
+
+  function menuBattle() { game = C.newGame(); ais = [C.makeAI('hard', 0, Date.now() & 0xff), C.makeAI('normal', 1, 9)]; }
+
+  function newRound() {
+    game = C.newGame();
+    reader = C.makeInputReader();
+    const seed = (Date.now() & 0xffff) + match.round;
+    if (demo) ais = [C.makeAI('god', 0, seed), C.makeAI('hard', 1, seed + 9)];
+    else {
+      const keep = ais[1] && ais[1].level === C.LEVELS[level] ? ais[1].habit : null;
+      ais = [null, C.makeAI(level, 1, seed)];
+      if (keep) Object.assign(ais[1].habit, keep); // 整场比赛都记得你的习惯
+    }
+    shown[0].drain = shown[1].drain = C.MAX_HP;
+    parts = []; popups.length = 0;
+    setMode('intro');
+    SFX.bell();
+  }
+
+  function seenHelp() { try { return localStorage.getItem('fight-help-seen') === '1'; } catch (e) { return true; } }
+  function startMatch(isDemo) {
+    audio();
+    if (!isDemo && !seenHelp()) { openHelp(() => startMatch(false)); return; } // 第一次开战先看一眼操作说明
+    demo = !!isDemo;
+    match.wins = [0, 0]; match.round = 1; match.dmg = 0; match.maxCombo = 0;
+    ais = [null, null];
+    names = demo ? ['AI · 魔王', 'AI · 高手'] : ['你', 'AI · ' + C.LEVELS[level].name];
+    show(null);
+    releaseAll();
+    setStatus(demo ? '观战中：左边魔王，右边高手。按 Esc 暂停或退出观战。' : `对手：${C.LEVELS[level].name}。按 Esc 暂停，按 H 看操作说明。`);
+    $('wrap').scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+    newRound();
+  }
+  function restartMatch() { startMatch(demo); }
+
+  function pause(why) {
+    if (!inMatch()) return;
+    prevMode = mode; setMode('paused');
+    $('pause-hint').textContent = why || (demo ? '正在观战。选“回主菜单”退出观战。' : '切换到别的窗口时会自动暂停。');
+    $('resume').innerHTML = (demo ? '继续观战' : '继续') + ' <kbd>Esc</kbd>';
+    show('pause'); $('resume').focus();
+    setStatus('已暂停。');
+  }
+  function resume() {
+    if (mode !== 'paused') return;
+    show(null); setMode(prevMode === 'intro' ? 'intro' : 'fight');
+    releaseAll();
+    setStatus(demo ? '观战中：按 Esc 暂停或退出观战。' : `对手：${C.LEVELS[level].name}。按 Esc 暂停。`);
+  }
+  function toMenu() {
+    menuBattle(); setMode('menu'); show('menu'); showRec();
+    setStatus('选好难度后点“开战”。'); $('start').focus();
+  }
+  function toggleMute() { muted = !muted; $('tb-mute').innerHTML = '声音：' + (muted ? '关' : '开') + ' <kbd>M</kbd>'; }
+
+  function openHelp(after) {
+    if ($('help').hidden === false) return;
+    if (inMatch()) pause();
+    helpReturn = after || null;
+    $('help').hidden = false;
+    $('help-close').focus();
+  }
+  function closeHelp() {
+    $('help').hidden = true;
+    try { localStorage.setItem('fight-help-seen', '1'); } catch (e) { /* 忽略 */ }
+    const after = helpReturn; helpReturn = null;
+    if (after) { after(); return; }
+    if (mode === 'paused') $('resume').focus();
+    else if (mode === 'menu') $('start').focus();
+    else if (mode === 'result') $('again').focus();
+  }
+
+  $('start').addEventListener('click', () => startMatch(false));
+  $('demo').addEventListener('click', () => startMatch(true));
+  $('menu-help').addEventListener('click', () => openHelp());
+  $('resume').addEventListener('click', resume);
+  $('restart').addEventListener('click', restartMatch);
+  $('pause-help').addEventListener('click', () => openHelp());
+  $('quit').addEventListener('click', toMenu);
+  $('again').addEventListener('click', () => startMatch(demo));
+  $('back').addEventListener('click', toMenu);
+  $('help-close').addEventListener('click', closeHelp);
+  $('help-close-x').addEventListener('click', closeHelp);
+  $('help').addEventListener('click', e => { if (e.target === $('help')) closeHelp(); });
+  $('tb-help').addEventListener('click', () => openHelp());
+  $('tb-mute').addEventListener('click', toggleMute);
+  $('tb-pause').addEventListener('click', () => { if (mode === 'paused') resume(); else pause(); });
+  // 主菜单按钮：对战中先暂停，让人在暂停页确认“回主菜单”，免得误点丢掉一场
+  $('tb-menu').addEventListener('click', () => {
+    if (!$('help').hidden) closeHelp();
+    if (inMatch()) { pause('要离开这场吗？点“回主菜单”确认，或按 Esc 继续。'); $('quit').focus(); }
+    else toMenu();
+  });
+
+  function endMatch() {
+    setMode('result');
+    const w = match.wins;
+    const t = $('result-title');
+    if (demo) { t.textContent = w[0] > w[1] ? '魔王胜' : '高手胜'; t.className = 'big win'; }
+    else if (w[0] > w[1]) { t.textContent = '你赢了'; t.className = 'big win'; }
+    else { t.textContent = 'AI 获胜'; t.className = 'big lose'; }
+    $('st-dmg').textContent = match.dmg;
+    $('st-combo').textContent = match.maxCombo;
+    $('st-rounds').textContent = `${w[0]} : ${w[1]}`;
+    const h = ais[1] ? ais[1].habit : {};
+    const top = Object.keys(h).filter(k => HABIT_NAMES[k]).sort((a, b) => h[b] - h[a])[0];
+    $('st-habit').innerHTML = demo ? '' : top
+      ? `AI 记下了你这场最爱用的招：<em>${HABIT_NAMES[top]}</em>（${Math.round(h[top])} 次）。下一场它会更提防这一招。`
+      : '你这场几乎没出招，AI 没摸到你的习惯。';
+    if (!demo) {
+      const r = rec[level] || { w: 0, l: 0 };
+      if (w[0] > w[1]) r.w++; else r.l++;
+      rec[level] = r; saveRec(rec);
+    }
+    show('result');
+    $('again').focus();
+    setStatus('Enter 再来一场，Esc 换难度。');
+  }
+
+  function handleEvents() {
+    for (const e of game.events) {
+      if (e.type === 'hit') {
+        const x = e.x, y = GY - e.y;
+        burst(x, y, e.super ? '255,230,120' : '255,240,200', e.big ? 18 : 10, e.big ? 9 : 6, 16);
+        ring(x, y, '255,220,150');
+        shake = Math.max(shake, e.big ? 9 : 4);
+        if (e.super) { flashScreen = 10; shake = 16; }
+        SFX.hit(e.big);
+        if (e.counter) popups.push({ text: '反击', x, y: y - 60, life: 40, max: 40, color: '255,120,90', size: 34 });
+        if (e.throw) popups.push({ text: '投', x, y: y - 60, life: 36, max: 36, color: '236,228,211', size: 40 });
+        if (!demo && e.who === 1) { match.dmg += e.dmg; match.maxCombo = Math.max(match.maxCombo, e.combo); }
+      } else if (e.type === 'block') {
+        ring(e.x, GY - e.y, '140,200,255'); burst(e.x, GY - e.y, '160,210,255', 6, 4, 10); SFX.block();
+      } else if (e.type === 'proj') SFX.proj(e.super);
+      else if (e.type === 'super') { superDim = 30; SFX.super(); }
+      else if (e.type === 'clash') { burst(e.x, GY - e.y, '255,255,255', 14, 7, 18); SFX.block(); }
+      else if (e.type === 'fall') { dust(e.x); shake = Math.max(shake, 5); }
+      else if (e.type === 'land') dust(game.f[e.who].x);
+      else if (e.type === 'jump') SFX.jump();
+      else if (e.type === 'ko') { SFX.ko(); flashScreen = 6; }
+    }
+    game.events.length = 0;
+  }
+
+  let slowTick = 0;
+  function tick() {
+    modeT++;
+    stepParts();
+    if (mode === 'menu') {
+      if (ais[0] && ais[1]) {
+        C.step(game, ais[0].intent(game), ais[1].intent(game)); game.events.length = 0;
+        if (game.over) menuBattle();
+      }
+      return;
+    }
+    if (mode === 'intro') {
+      if (modeT >= 100) setMode('fight');
+      return;
+    }
+    if (mode !== 'fight') return;
+    if (game.koT > 0 && game.koT < 60 && !reduceMotion && (slowTick++ % 2)) return; // KO 后慢动作
+    const f0 = game.f[0];
+    const it0 = ais[0] ? ais[0].intent(game) : reader(readRaw(), f0.face, f0.st === 'air' && !f0.airUsed);
+    const it1 = ais[1].intent(game);
+    C.step(game, it0, it1);
+    handleEvents();
+    if (game.over) {
+      if (game.winner === 0 || game.winner === 1) match.wins[game.winner]++;
+      if (match.wins[0] >= 2 || match.wins[1] >= 2 || match.round >= 5) endMatch();
+      else { match.round++; newRound(); }
+    }
+  }
+
+  const ROUND_NAMES = ['', '第一回合', '第二回合', '第三回合', '第四回合', '决胜回合'];
+  function render() {
+    ctx.save();
+    if (shake > 0.5 && !reduceMotion) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+    ctx.drawImage(bg, -10, -10, W + 20, H + 20);
+    if (superDim > 0) { ctx.fillStyle = `rgba(5,5,15,${Math.min(0.6, superDim / 30)})`; ctx.fillRect(0, 0, W, H); }
+    const order = game.f[0].st === 'atk' ? [1, 0] : [0, 1];
+    for (const i of order) drawFighter(game.f[i], i, game.t);
+    for (const p of game.projs) drawProj(p);
+    drawParts();
+    ctx.restore();
+    if (flashScreen > 0) { ctx.fillStyle = `rgba(255,255,255,${flashScreen / 14})`; ctx.fillRect(0, 0, W, H); }
+    if (mode !== 'menu') drawHUD();
+    if (mode === 'intro') {
+      if (modeT < 60) banner(ROUND_NAMES[Math.min(match.round, 5)], `${match.wins[0]} : ${match.wins[1]}`);
+      else banner('开 战', null, '#efc25a');
+    }
+    if ((mode === 'fight' || mode === 'paused') && game.koT && game.koT > 20) {
+      const w = game.winner;
+      const txt = game.roundT === 0 ? '时间到' : 'K.O.';
+      const sub = w === 2 ? '平局' : demo ? (w === 0 ? '魔王拿下这一回合' : '高手拿下这一回合') : (w === 0 ? '你拿下这一回合' : 'AI 拿下这一回合');
+      banner(txt, sub, txt === 'K.O.' ? '#ff6b4a' : '#ece4d3');
+    }
+  }
+
+  // 主循环：固定 60 帧逻辑，画面跟随刷新率
+  let last = performance.now(), acc = 0;
+  function loop(now) {
+    acc += Math.min(100, now - last); last = now;
+    let n = 0;
+    while (acc >= 1000 / 60 && n < 4) { tick(); acc -= 1000 / 60; n++; }
+    if (n === 4) acc = 0;
+    pollPadButtons();
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // 招式表（直接读引擎里的帧数据，和游戏永远一致）
+  function fillMoveTable() {
+    const M = C.MOVES;
+    const rows = [
+      ['jab', '<kbd>J</kbd>', '最快的出手，打中可以接必杀'],
+      ['heavy', '<kbd>K</kbd>', '距离远、伤害高，打中可以接升龙'],
+      ['cA', '下 + <kbd>J</kbd>', '蹲着戳脚，对手必须蹲防'],
+      ['cB', '下 + <kbd>K</kbd>', '打中直接倒地；收招慢'],
+      ['over', '前 + <kbd>K</kbd>', '专破蹲防，慢但能反应'],
+      ['jA', '空中 <kbd>J</kbd>', '跳入起手，出得快'],
+      ['jB', '空中 <kbd>K</kbd>', '跳入主力，伤害高'],
+      ['throw', '贴身 <kbd>L</kbd>', '防不住；对手出招时投不到'],
+      ['fbA', '<kbd>U</kbd> 或 ↓↘→+J', '慢速波，跟在后面一起压上去'],
+      ['fbB', '<kbd>Shift</kbd>+<kbd>U</kbd> 或 ↓↘→+K', '快速波，远距离消耗'],
+      ['dpA', '<kbd>I</kbd> 或 →↓↘+J', `前 ${M.dpA.inv} 帧无敌，专打跳过来的人`],
+      ['dpB', '<kbd>Shift</kbd>+<kbd>I</kbd> 或 →↓↘+K', `前 ${M.dpB.inv} 帧无敌，伤害更高、破绽更大`],
+      ['super', '气满 <kbd>O</kbd> 或 ↓↘→+L', `前 ${M.super.inv} 帧无敌，被防住也掉不少血`],
+    ];
+    const guardTag = m => {
+      if (m.throw) return '<span class="tag un">防不住</span>';
+      if (m.proj) return '<span class="tag">站蹲都行</span>';
+      return m.guard === 'high' ? '<span class="tag hi">只能站防</span>' : m.guard === 'low' ? '<span class="tag lo">只能蹲防</span>' : '<span class="tag">站蹲都行</span>';
+    };
+    $('move-table').innerHTML = rows.map(([id, key, use]) => {
+      const m = M[id];
+      const dmg = m.proj ? m.proj.dmg : m.dmg;
+      return `<tr><td>${m.name}</td><td>${key}</td><td class="num">${m.s} 帧</td><td class="num">${dmg}</td><td>${guardTag(m)}</td><td>${use}</td></tr>`;
+    }).join('');
+  }
+
+  function boot() {
+    let saved = null;
+    try { saved = localStorage.getItem('fight-level'); } catch (e) { /* 忽略 */ }
+    if (saved && C.LEVELS[saved]) setLevel(saved);
+    showRec();
+    fillMoveTable();
+    setupTouch();
+    menuBattle();
+    syncBar();
+    requestAnimationFrame(loop);
+    $('start').focus({ preventScroll: true });
+    if (document.fonts && document.fonts.load) {
+      ['96px "Zhi Mang Xing"', '700 32px "Oxanium"', '600 15px "Noto Sans SC"'].forEach(f => document.fonts.load(f).catch(() => {}));
+    }
+    // #demo 直接看 AI 互打；#demo600 先快进 600 帧（测试截图用）；#help 打开说明
+    const dm = location.hash.match(/^#demo(\d+)?$/);
+    if (dm) { startMatch(true); for (let k = 0; k < Math.min(+dm[1] || 0, 20000); k++) tick(); }
+    else if (location.hash === '#help') openHelp();
+  }
+  boot();
+})();
+
+</script>
+</body>
+</html>
